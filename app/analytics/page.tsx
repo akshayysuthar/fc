@@ -6,7 +6,7 @@ import {
   Download,
   TrendingUp,
   Package,
-  DollarSign,
+  IndianRupee,
   CreditCard,
 } from "lucide-react";
 import {
@@ -201,28 +201,30 @@ export default function AnalyticsPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-white shadow-sm border-b">
-        <div className="p-4 max-w-7xl mx-auto">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <div className="bg-white shadow-sm border-b sticky top-0 z-10">
+        <div className="p-3 sm:p-4">
+          <div className="flex flex-col gap-4">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">
+              <h1 className="text-lg sm:text-2xl font-bold text-gray-900">
                 Analytics Dashboard
               </h1>
-              <p className="text-gray-600">Track performance and insights</p>
+              <p className="text-sm text-gray-600">
+                Track performance and insights
+              </p>
             </div>
             <div className="flex flex-col sm:flex-row gap-3">
               <Popover open={showCalendar} onOpenChange={setShowCalendar}>
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
-                    className="justify-start text-left font-normal"
+                    className="justify-start text-left font-normal text-xs sm:text-sm"
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
                     {dateRange.from ? (
                       dateRange.to ? (
                         <>
-                          {format(dateRange.from, "LLL dd, y")} -{" "}
-                          {format(dateRange.to, "LLL dd, y")}
+                          {format(dateRange.from, "MMM dd")} -{" "}
+                          {format(dateRange.to, "MMM dd, y")}
                         </>
                       ) : (
                         format(dateRange.from, "LLL dd, y")
@@ -244,23 +246,27 @@ export default function AnalyticsPage() {
                         setShowCalendar(false);
                       }
                     }}
-                    numberOfMonths={2}
+                    numberOfMonths={1}
                   />
                 </PopoverContent>
               </Popover>
-              <Button onClick={exportData} className="flex items-center gap-2">
+              <Button
+                onClick={exportData}
+                className="flex items-center gap-2"
+                size="sm"
+              >
                 <Download className="h-4 w-4" />
-                Export Data
+                Export
               </Button>
-              <Button asChild variant="outline">
-                <Link href="/">← Back to Home</Link>
+              <Button asChild variant="outline" size="sm">
+                <Link href="/">← Home</Link>
               </Button>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="p-4 max-w-7xl mx-auto">
+      <div className="p-3 sm:p-4">
         {loading ? (
           <div className="flex items-center justify-center h-64">
             <div className="text-gray-500">Loading analytics...</div>
@@ -270,18 +276,20 @@ export default function AnalyticsPage() {
             <div className="text-gray-500">No data available</div>
           </div>
         ) : (
-          <div className="space-y-6">
+          <div className="space-y-4 sm:space-y-6">
             {/* Key Metrics */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">
+                  <CardTitle className="text-xs sm:text-sm font-medium">
                     Total Orders
                   </CardTitle>
                   <Package className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{stats.totalOrders}</div>
+                  <div className="text-lg sm:text-2xl font-bold">
+                    {stats.totalOrders}
+                  </div>
                   <p className="text-xs text-muted-foreground">
                     {stats.totalCanceled} canceled
                   </p>
@@ -290,30 +298,32 @@ export default function AnalyticsPage() {
 
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">
+                  <CardTitle className="text-xs sm:text-sm font-medium">
                     Total Revenue
                   </CardTitle>
-                  <DollarSign className="h-4 w-4 text-muted-foreground" />
+                  <IndianRupee className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">
-                    ${stats.totalRevenue}
+                  <div className="text-lg sm:text-2xl font-bold flex items-center">
+                    <IndianRupee className="h-4 w-4 sm:h-5 sm:w-5" />
+                    {stats.totalRevenue}
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    +${stats.totalDeliveryFee} delivery fees
+                  <p className="text-xs text-muted-foreground flex items-center">
+                    +<IndianRupee className="h-3 w-3" />
+                    {stats.totalDeliveryFee} delivery fees
                   </p>
                 </CardContent>
               </Card>
 
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">
+                  <CardTitle className="text-xs sm:text-sm font-medium">
                     Success Rate
                   </CardTitle>
                   <TrendingUp className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">
+                  <div className="text-lg sm:text-2xl font-bold">
                     {stats.totalOrders > 0
                       ? Math.round(
                           ((stats.totalOrders - stats.totalCanceled) /
@@ -331,14 +341,14 @@ export default function AnalyticsPage() {
 
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">
+                  <CardTitle className="text-xs sm:text-sm font-medium">
                     Avg Order Value
                   </CardTitle>
-                  <DollarSign className="h-4 w-4 text-muted-foreground" />
+                  <IndianRupee className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">
-                    $
+                  <div className="text-lg sm:text-2xl font-bold flex items-center">
+                    <IndianRupee className="h-4 w-4 sm:h-5 sm:w-5" />
                     {stats.totalOrders > 0
                       ? Math.round(stats.totalRevenue / stats.totalOrders)
                       : 0}
@@ -351,11 +361,13 @@ export default function AnalyticsPage() {
             </div>
 
             {/* Charts Row 1 */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
               {/* Orders by Day */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Orders by Day</CardTitle>
+                  <CardTitle className="text-base sm:text-lg">
+                    Orders by Day
+                  </CardTitle>
                   <CardDescription>Daily order trends</CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -370,13 +382,13 @@ export default function AnalyticsPage() {
                         color: "hsl(var(--chart-2))",
                       },
                     }}
-                    className="h-[300px]"
+                    className="h-[250px] sm:h-[300px]"
                   >
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={formatDayData(data.ordersByDay)}>
                         <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="date" />
-                        <YAxis />
+                        <XAxis dataKey="date" fontSize={12} />
+                        <YAxis fontSize={12} />
                         <ChartTooltip content={<ChartTooltipContent />} />
                         <Bar dataKey="orders" fill="var(--color-orders)" />
                       </BarChart>
@@ -388,7 +400,9 @@ export default function AnalyticsPage() {
               {/* Payment Methods */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Payment Methods</CardTitle>
+                  <CardTitle className="text-base sm:text-lg">
+                    Payment Methods
+                  </CardTitle>
                   <CardDescription>
                     Distribution by payment type
                   </CardDescription>
@@ -401,7 +415,7 @@ export default function AnalyticsPage() {
                         color: "hsl(var(--chart-1))",
                       },
                     }}
-                    className="h-[300px]"
+                    className="h-[250px] sm:h-[300px]"
                   >
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
@@ -433,11 +447,13 @@ export default function AnalyticsPage() {
             </div>
 
             {/* Charts Row 2 */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
               {/* Orders by Slot */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Orders by Time Slot</CardTitle>
+                  <CardTitle className="text-base sm:text-lg">
+                    Orders by Time Slot
+                  </CardTitle>
                   <CardDescription>Popular delivery times</CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -448,13 +464,18 @@ export default function AnalyticsPage() {
                         color: "hsl(var(--chart-3))",
                       },
                     }}
-                    className="h-[300px]"
+                    className="h-[250px] sm:h-[300px]"
                   >
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={data.ordersBySlot} layout="horizontal">
                         <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis type="number" />
-                        <YAxis dataKey="_id" type="category" width={100} />
+                        <XAxis type="number" fontSize={12} />
+                        <YAxis
+                          dataKey="_id"
+                          type="category"
+                          width={80}
+                          fontSize={10}
+                        />
                         <ChartTooltip content={<ChartTooltipContent />} />
                         <Bar dataKey="totalOrders" fill="var(--color-orders)" />
                       </BarChart>
@@ -466,7 +487,9 @@ export default function AnalyticsPage() {
               {/* Revenue Trend */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Revenue Trend</CardTitle>
+                  <CardTitle className="text-base sm:text-lg">
+                    Revenue Trend
+                  </CardTitle>
                   <CardDescription>Daily revenue performance</CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -477,13 +500,13 @@ export default function AnalyticsPage() {
                         color: "hsl(var(--chart-4))",
                       },
                     }}
-                    className="h-[300px]"
+                    className="h-[250px] sm:h-[300px]"
                   >
                     <ResponsiveContainer width="100%" height="100%">
                       <LineChart data={formatDayData(data.ordersByDay)}>
                         <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="date" />
-                        <YAxis />
+                        <XAxis dataKey="date" fontSize={12} />
+                        <YAxis fontSize={12} />
                         <ChartTooltip content={<ChartTooltipContent />} />
                         <Line
                           type="monotone"
@@ -499,17 +522,19 @@ export default function AnalyticsPage() {
             </div>
 
             {/* Detailed Tables */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
               {/* Top Products */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Top Products</CardTitle>
+                  <CardTitle className="text-base sm:text-lg">
+                    Top Products
+                  </CardTitle>
                   <CardDescription>
                     Best selling products by revenue
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-4">
+                  <div className="space-y-3 sm:space-y-4">
                     {data.sellerProductAggregation
                       .flatMap((seller) =>
                         seller.products.map((product) => ({
@@ -524,8 +549,8 @@ export default function AnalyticsPage() {
                           key={product.productId}
                           className="flex items-center justify-between p-3 bg-gray-50 rounded"
                         >
-                          <div className="flex-1">
-                            <div className="font-medium text-sm">
+                          <div className="flex-1 min-w-0">
+                            <div className="font-medium text-sm truncate">
                               {product.productName}
                             </div>
                             <div className="text-xs text-gray-600">
@@ -533,7 +558,10 @@ export default function AnalyticsPage() {
                             </div>
                           </div>
                           <div className="text-right">
-                            <div className="font-bold">${product.revenue}</div>
+                            <div className="font-bold flex items-center">
+                              <IndianRupee className="h-4 w-4" />
+                              {product.revenue}
+                            </div>
                             <div className="text-xs text-gray-600">
                               {product.quantitySold} sold
                             </div>
@@ -547,18 +575,20 @@ export default function AnalyticsPage() {
               {/* Branch Performance */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Branch Performance</CardTitle>
+                  <CardTitle className="text-base sm:text-lg">
+                    Branch Performance
+                  </CardTitle>
                   <CardDescription>Performance by branch</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-4">
+                  <div className="space-y-3 sm:space-y-4">
                     {data.branchStats.map((branch, index) => (
                       <div
                         key={branch.branchId}
                         className="flex items-center justify-between p-3 bg-gray-50 rounded"
                       >
-                        <div className="flex-1">
-                          <div className="font-medium text-sm">
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium text-sm truncate">
                             {branch.branchName}
                           </div>
                           <div className="text-xs text-gray-600">
@@ -567,8 +597,9 @@ export default function AnalyticsPage() {
                           </div>
                         </div>
                         <div className="text-right">
-                          <div className="font-bold">
-                            ${branch.totalRevenue}
+                          <div className="font-bold flex items-center">
+                            <IndianRupee className="h-4 w-4" />
+                            {branch.totalRevenue}
                           </div>
                           <div className="text-xs text-gray-600">
                             {branch.totalOrders > 0
@@ -592,7 +623,9 @@ export default function AnalyticsPage() {
             {/* Payment Method Details */}
             <Card>
               <CardHeader>
-                <CardTitle>Payment Method Breakdown</CardTitle>
+                <CardTitle className="text-base sm:text-lg">
+                  Payment Method Breakdown
+                </CardTitle>
                 <CardDescription>Detailed payment analysis</CardDescription>
               </CardHeader>
               <CardContent>
@@ -614,16 +647,17 @@ export default function AnalyticsPage() {
                           <span className="text-sm text-gray-600">
                             Revenue:
                           </span>
-                          <span className="font-medium">
-                            ${method.totalRevenue}
+                          <span className="font-medium flex items-center">
+                            <IndianRupee className="h-3 w-3" />
+                            {method.totalRevenue}
                           </span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-sm text-gray-600">
                             Avg Value:
                           </span>
-                          <span className="font-medium">
-                            $
+                          <span className="font-medium flex items-center">
+                            <IndianRupee className="h-3 w-3" />
                             {method.totalOrders > 0
                               ? Math.round(
                                   method.totalRevenue / method.totalOrders

@@ -1,7 +1,8 @@
 "use client";
+
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { LogOut, RefreshCw } from "lucide-react";
+import { LogOut, RefreshCw, IndianRupee } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -25,6 +26,11 @@ interface Order {
     name: string;
     count: number;
     price: number;
+    branch: {
+      _id: string;
+      name: string;
+    };
+    status?: string;
   }>;
   slot: {
     label: string;
@@ -38,6 +44,15 @@ interface Order {
     method: string;
     status: string;
   };
+  pickupLocations: Array<{
+    branch: {
+      _id: string;
+      name: string;
+    };
+    address: string;
+    latitude: number;
+    longitude: number;
+  }>;
 }
 
 const statusColors = {
@@ -57,11 +72,11 @@ export default function DeliveryDashboard() {
   const [availableOrders, setAvailableOrders] = useState<Order[]>([]);
   const [assignedOrders, setAssignedOrders] = useState<Order[]>([]);
   const [deliveredOrders, setDeliveredOrders] = useState<Order[]>([]);
-  const [userId, setUserId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<
+  const [selectedTab, setSelectedTab] = useState<
     "available" | "assigned" | "delivered"
   >("available");
+  const [userId, setUserId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -71,26 +86,17 @@ export default function DeliveryDashboard() {
       return;
     }
     setUserId(storedUserId);
+    fetchAvailableOrders(storedUserId);
   }, [router]);
 
-  useEffect(() => {
-    if (userId) fetchOrders(userId);
-  }, [userId]);
-
-  const fetchOrders = async (userId: string) => {
+  const fetchAvailableOrders = async (userId: string) => {
     try {
       setLoading(true);
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/orders/delivery/available`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ userId }),
-        }
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/orders/delivery/available?userId=${userId}`
       );
-      if (!res.ok) throw new Error("Failed to fetch orders");
-      const data = await res.json();
-
+      if (!response.ok) throw new Error("Failed to fetch orders");
+      const data = await response.json();
       setAvailableOrders(data.available || []);
       setAssignedOrders(data.assigned || []);
       setDeliveredOrders(data.delivered || []);
@@ -103,9 +109,8 @@ export default function DeliveryDashboard() {
 
   const confirmOrder = async (orderId: string) => {
     if (!userId) return;
-
     try {
-      const res = await fetch(
+      const response = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/orders/delivery/${orderId}/confirm`,
         {
           method: "POST",
@@ -113,126 +118,171 @@ export default function DeliveryDashboard() {
           body: JSON.stringify({ userId }),
         }
       );
-
-      if (!res.ok) throw new Error("Failed to confirm order");
-
-      // Move order from available to assigned
+      if (!response.ok) throw new Error("Failed to confirm order");
       const order = availableOrders.find((o) => o._id === orderId);
       if (order) {
-        setAvailableOrders((prev) => prev.filter((o) => o._id !== orderId));
-        setAssignedOrders((prev) => [
-          ...prev,
+        setAvailableOrders(availableOrders.filter((o) => o._id !== orderId));
+        setAssignedOrders([
+          ...assignedOrders,
           { ...order, status: "assigned" },
         ]);
-        setActiveTab("assigned"); // optionally switch to assigned tab
+        setSelectedTab("assigned");
       }
     } catch (error) {
       console.error("Failed to confirm order:", error);
     }
   };
 
-  const formatAddress = (address: Order["customer"]["address"]) => {
+  const formatAddress = (address: any) => {
     if (!address) return "N/A";
-    return [
-      address.houseNo,
-      address.streetAddress,
-      address.city,
-      address.state,
-      address.pinCode,
-    ]
-      .filter(Boolean)
-      .join(", ");
+    const parts = [address.houseNo, address.streetAddress, address.city].filter(
+      Boolean
+    );
+    return parts.join(", ");
   };
 
-  const getTotalQty = (items: Array<{ count: number }>) =>
-    items.reduce((total, item) => total + item.count, 0);
+  const getTotalQty = (items: Array<{ count: number }>) => {
+    return items.reduce((total, item) => total + item.count, 0);
+  };
 
   const handleLogout = () => {
     localStorage.removeItem("deliveryPartnerId");
     router.push("/delivery/login");
   };
-  const countOrdersBySlot = (orders: Order[]) => {
-    const counts: { [slotLabel: string]: number } = {};
-    orders.forEach((order) => {
-      const label = order.slot?.label || "Unknown";
-      counts[label] = (counts[label] || 0) + 1;
-    });
-    return counts;
-  };
 
-  const renderOrders = (orders: Order[], showConfirmBtn = false) => {
-    if (loading)
-      return <div className="text-center py-8 text-gray-500">Loading...</div>;
-    if (orders.length === 0)
-      return (
-        <div className="text-center py-8 text-gray-500">No orders found</div>
-      );
+  const renderOrderCard = (order: Order) => (
+    <Card key={order._id}>
+      <CardContent className="p-3 sm:p-4">
+        <div className="flex items-center justify-between mb-3">
+          <Badge
+            className={statusColors[order.status as keyof typeof statusColors]}
+            variant="secondary"
+          >
+            {order.status}
+          </Badge>
+          <h1 className="font-bold flex items-center">{order.orderId}</h1>
+          <div className="font-bold flex items-center">
+            <IndianRupee className="h-4 w-4" />
+            {order.totalPrice}
+          </div>
+        </div>
+        <div className="mb-3">
+          <div className="font-medium text-sm">{order.customer.name}</div>
+          <div className="text-xs text-gray-600">
+            {formatAddress(order.customer?.address)}
+          </div>
+        </div>
+        {/* Branch Status */}
+        <div className="mb-3 p-2 bg-gray-50 rounded">
+          <div className="text-xs text-gray-600 mb-1">Branch Status:</div>
+          <div className="space-y-1">
+            {order.pickupLocations?.map((location: any, index: number) => {
+              const branchItems = order.items.filter(
+                (item: any) =>
+                  item.branch === location.branch ||
+                  item.branch._id === location.branch._id
+              );
 
-    return (
-      <div className="space-y-3">
-        {orders.map((order) => (
-          <Card key={order._id}>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between mb-3">
-                <span className="font-medium text-sm">#{order.orderId}</span>
-                <div className="text-right">
-                  <div className="font-bold">
-                    ${order.totalPrice.toFixed(2)}
-                  </div>
-                  <Badge
+              if (branchItems.length === 0) return null;
+
+              const packedItems = branchItems.filter(
+                (item: any) => item.status === "packed"
+              ).length;
+              const totalItems = branchItems.length;
+
+              return (
+                <div key={index} className="flex justify-between text-xs">
+                  <span className="text-gray-600">Branch {index + 1}:</span>
+                  <span
                     className={
-                      paymentStatusColors[
-                        order.payment
-                          ?.status as keyof typeof paymentStatusColors
-                      ] ?? "bg-gray-100 text-gray-800"
+                      packedItems === totalItems
+                        ? "text-green-600"
+                        : "text-orange-600"
                     }
-                    variant="secondary"
                   >
-                    {order.payment?.method ?? "N/A"} -{" "}
-                    {order.payment?.status ?? "unknown"}
-                  </Badge>
+                    {packedItems}/{totalItems} packed
+                  </span>
                 </div>
-              </div>
-              <div className="mb-3">
-                <div className="font-medium text-sm">
-                  {order.customer?.name}
+              );
+            })}
+          </div>
+        </div>
+        <Button asChild className="w-full" size="sm">
+          <Link href={`/delivery/orders/${order._id}`}>View Order</Link>
+        </Button>
+      </CardContent>
+    </Card>
+  );
+
+  const renderAvailableOrders = () =>
+    availableOrders.length === 0 ? (
+      <div className="text-center py-8 text-gray-500">No orders available</div>
+    ) : (
+      availableOrders.map((order) => (
+        <Card key={order._id}>
+          <CardContent className="p-3 sm:p-4">
+            <div className="flex items-center justify-between mb-3">
+              <span className="font-medium text-sm">#{order.orderId}</span>
+              <div className="text-right">
+                <div className="font-bold flex items-center">
+                  <IndianRupee className="h-4 w-4" />
+                  {order.totalPrice}
                 </div>
-                <div className="text-xs text-gray-600">
-                  {order.customer?.phone}
-                </div>
-                <div className="text-xs text-gray-600">
-                  {formatAddress(order.customer?.address)}
-                </div>
-              </div>
-              <div className="mb-3 flex justify-between text-xs text-gray-600">
-                <span>Qty: {getTotalQty(order.items)}</span>
-                <span>{order.slot.label}</span>
-              </div>
-              {showConfirmBtn && (
-                <Button
-                  onClick={() => confirmOrder(order._id)}
-                  className="w-full"
-                  size="sm"
+                <Badge
+                  className={
+                    paymentStatusColors[
+                      order.payment.status as keyof typeof paymentStatusColors
+                    ]
+                  }
+                  variant="secondary"
                 >
-                  Accept Order
-                </Button>
-              )}
-              {!showConfirmBtn && (
-                <Button asChild className="w-full" size="sm">
-                  <Link href={`/delivery/orders/${order._id}`}>View Order</Link>
-                </Button>
-              )}
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+                  {order.payment.method}
+                </Badge>
+              </div>
+            </div>
+            <div className="mb-3">
+              <div className="font-medium text-sm">{order.customer.name}</div>
+              <div className="text-xs text-gray-600">
+                {order.customer.phone}
+              </div>
+              <div className="text-xs text-gray-600">
+                {formatAddress(order.customer.address)}
+              </div>
+            </div>
+            <div className="mb-3 flex justify-between text-xs text-gray-600">
+              <span>Qty: {getTotalQty(order.items)}</span>
+              <span>{order.slot.label}</span>
+            </div>
+            <Button
+              onClick={() => confirmOrder(order._id)}
+              className="w-full"
+              size="sm"
+            >
+              Accept Order
+            </Button>
+          </CardContent>
+        </Card>
+      ))
     );
+
+  const tabData = {
+    available: renderAvailableOrders(),
+    assigned: assignedOrders.length ? (
+      assignedOrders.map(renderOrderCard)
+    ) : (
+      <div className="text-center py-8 text-gray-500">No assigned orders</div>
+    ),
+    delivered: deliveredOrders.length ? (
+      deliveredOrders.map(renderOrderCard)
+    ) : (
+      <div className="text-center py-8 text-gray-500">No delivered orders</div>
+    ),
   };
 
   if (!userId) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div>Loading...</div>
+        Loading...
       </div>
     );
   }
@@ -240,17 +290,19 @@ export default function DeliveryDashboard() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-white shadow-sm border-b">
-        <div className="p-4 max-w-4xl mx-auto flex items-center justify-between">
+      <div className="bg-white shadow-sm border-b sticky top-0 z-10">
+        <div className="p-3 sm:p-4 flex justify-between items-center">
           <div>
-            <h1 className="text-xl font-bold text-gray-900">
+            <h1 className="text-lg sm:text-xl font-bold text-gray-900">
               Delivery Partner
             </h1>
-            <p className="text-sm text-gray-600">Partner: {userId}</p>
+            <p className="text-xs sm:text-sm text-gray-600">
+              Partner: {userId}
+            </p>
           </div>
           <div className="flex gap-2">
             <Button
-              onClick={() => userId && fetchOrders(userId)}
+              onClick={() => fetchAvailableOrders(userId)}
               variant="outline"
               size="sm"
             >
@@ -263,72 +315,32 @@ export default function DeliveryDashboard() {
         </div>
       </div>
 
-      {/* Stats */}
-      <div className="p-4 max-w-4xl mx-auto grid grid-cols-3 gap-3 mb-6">
-        <Card
-          className={`text-center cursor-pointer ${
-            activeTab === "available" ? "border-2 border-blue-500" : ""
-          }`}
-          onClick={() => setActiveTab("available")}
-        >
-          <CardContent className="p-4">
-            <div className="text-2xl font-bold text-green-600">
-              {availableOrders.length}
-            </div>
-            <div className="text-xs text-gray-600">Available</div>
-          </CardContent>
-        </Card>
-        <Card
-          className={`text-center cursor-pointer ${
-            activeTab === "assigned" ? "border-2 border-blue-500" : ""
-          }`}
-          onClick={() => setActiveTab("assigned")}
-        >
-          <CardContent className="p-4">
-            <div className="text-2xl font-bold text-blue-600">
-              {assignedOrders.length}
-            </div>
-            <div className="text-xs text-gray-600">Assigned</div>
-          </CardContent>
-        </Card>
-        <Card
-          className={`text-center cursor-pointer ${
-            activeTab === "delivered" ? "border-2 border-blue-500" : ""
-          }`}
-          onClick={() => setActiveTab("delivered")}
-        >
-          <CardContent className="p-4">
-            <div className="text-2xl font-bold text-gray-600">
-              {deliveredOrders.length}
-            </div>
-            <div className="text-xs text-gray-600">Delivered</div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Slot count summary */}
-      <div className="mb-4 max-w-4xl mx-auto p-4 bg-white rounded shadow-sm">
-        <h2 className="font-semibold mb-2">Orders by Slot</h2>
-        <ul className="text-sm text-gray-700">
-          {Object.entries(
-            activeTab === "available"
-              ? countOrdersBySlot(availableOrders)
-              : activeTab === "assigned"
-              ? countOrdersBySlot(assignedOrders)
-              : countOrdersBySlot(deliveredOrders)
-          ).map(([slotLabel, count]) => (
-            <li key={slotLabel}>
-              <strong>{slotLabel}:</strong> {count}
-            </li>
+      {/* Tabs */}
+      <div className="p-4 space-y-4">
+        <div className="grid grid-cols-3 gap-2 text-center">
+          {(["available", "assigned", "delivered"] as const).map((tab) => (
+            <Button
+              key={tab}
+              variant={selectedTab === tab ? "default" : "outline"}
+              onClick={() => setSelectedTab(tab)}
+            >
+              {tab.charAt(0).toUpperCase() + tab.slice(1)} (
+              {tab === "available"
+                ? availableOrders.length
+                : tab === "assigned"
+                ? assignedOrders.length
+                : deliveredOrders.length}
+              )
+            </Button>
           ))}
-        </ul>
-      </div>
-
-      {/* Orders List by tab */}
-      <div className="p-4 max-w-4xl mx-auto">
-        {activeTab === "available" && renderOrders(availableOrders, true)}
-        {activeTab === "assigned" && renderOrders(assignedOrders, false)}
-        {activeTab === "delivered" && renderOrders(deliveredOrders, false)}
+        </div>
+        <div>
+          {loading ? (
+            <div className="text-center py-8 text-gray-500">Loading...</div>
+          ) : (
+            tabData[selectedTab]
+          )}
+        </div>
       </div>
     </div>
   );
