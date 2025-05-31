@@ -1,29 +1,29 @@
-"use client";
+"use client"
 
-import type React from "react";
+import type React from "react"
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { Truck } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import Link from "next/link";
+import { useState } from "react"
+import { useRouter } from "next/navigation"
+import { Truck } from "lucide-react"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import Link from "next/link"
 
 export default function DeliveryLogin() {
-  const [deliveryPartnerId, setDeliveryPartnerId] = useState("");
-  const [loading, setLoading] = useState(false);
-  const router = useRouter();
+  const [deliveryPartnerId, setDeliveryPartnerId] = useState("")
+  const [loading, setLoading] = useState(false)
+  const router = useRouter()
 
   const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!deliveryPartnerId.trim()) return;
+    e.preventDefault()
+    if (!deliveryPartnerId.trim()) return
 
-    setLoading(true);
-    localStorage.setItem("deliveryPartnerId", deliveryPartnerId.trim());
-    router.push("/delivery");
-  };
+    setLoading(true)
+    localStorage.setItem("deliveryPartnerId", deliveryPartnerId.trim())
+    router.push("/delivery")
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
@@ -58,5 +58,5 @@ export default function DeliveryLogin() {
         </CardContent>
       </Card>
     </div>
-  );
+  )
 }
