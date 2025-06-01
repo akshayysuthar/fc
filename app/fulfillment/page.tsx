@@ -72,6 +72,8 @@ export default function FulfillmentDashboard() {
     }
   }
 
+  
+
   const handleLogout = () => {
     localStorage.removeItem("branchId")
     router.push("/fulfillment/login")
@@ -114,6 +116,8 @@ export default function FulfillmentDashboard() {
 
     return slotStats
   }
+
+  
 
   const stats = getStats()
   const slotStats = getSlotStats()

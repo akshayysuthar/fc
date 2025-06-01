@@ -91,20 +91,22 @@ export default function OrderCard({
     };
   };
 
-  const updateOrderStatus = async (newStatus: string) => {
+  const updateOrderStatus = async (newStatus: string, itemIndex?: number) => {
     try {
+      const body: any = { status: newStatus };
+      if (itemIndex !== undefined) body.itemIndex = itemIndex;
+
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/orders/branch/${order._id}/status`,
         {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ status: newStatus }),
+          body: JSON.stringify(body),
         }
       );
 
       if (!response.ok) throw new Error("Failed to update status");
 
-      // Refresh the data
       onRefresh();
     } catch (error) {
       console.error("Failed to update order status:", error);
@@ -116,8 +118,8 @@ export default function OrderCard({
     const parts = [
       address.houseNo,
       address.streetAddress,
-      ` Landmark :
-      ${address.landmark}`,
+      // ` Landmark :
+      // ${address.landmark}`,
       address.area,
       address.city,
       address.state,
@@ -235,7 +237,12 @@ export default function OrderCard({
               </Button>
             </div>
           ) : (
-            <Button asChild className="w-full" size="sm">
+            <Button
+              onClick={() => updateOrderStatus("confirmed")}
+              asChild
+              className="w-full"
+              size="sm"
+            >
               <Link href={`/fulfillment/orders/${order._id}`}>
                 Process Items ({branchStats.pending + branchStats.packing}{" "}
                 remaining)

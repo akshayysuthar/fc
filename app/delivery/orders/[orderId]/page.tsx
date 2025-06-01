@@ -37,6 +37,7 @@ export default function DeliveryOrderDetailPage() {
     "pickup" | "delivery" | "verification"
   >("pickup");
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<string | null>(null);
 
   useEffect(() => {
     const storedUserId = localStorage.getItem("deliveryPartnerId");
@@ -121,10 +122,12 @@ export default function DeliveryOrderDetailPage() {
   };
 
   const handleCashPayment = (amount: number) => {
+    setPaymentMethod("Cash");
     setCurrentStep("verification");
   };
 
   const handleUPIPayment = () => {
+    setPaymentMethod("Online");
     setCurrentStep("verification");
   };
 
@@ -149,9 +152,19 @@ export default function DeliveryOrderDetailPage() {
         {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ status: "delivered", userId }),
+          body: JSON.stringify({
+            status: "delivered",
+            paymentStatus: "paid",
+            paymentMethod: paymentMethod, // from state
+            userId,
+          }),
         }
       );
+
+      if (!paymentMethod) {
+        console.error("Payment method not selected");
+        return;
+      }
 
       router.push("/delivery");
     } catch (error) {

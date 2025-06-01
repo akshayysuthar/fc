@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 interface Order {
   _id: string;
   orderId: string;
+  status: string;
   customer: {
     name: string;
     phone: string;
@@ -39,6 +40,13 @@ interface Order {
     longitude: number;
   };
 }
+
+const statusColors = {
+  pending: "bg-yellow-100 text-yellow-800",
+  packing: "bg-orange-100 text-orange-800",
+  packed: "bg-purple-100 text-purple-800",
+  ready: "bg-green-100 text-green-800",
+};
 
 interface AvailableOrderCardProps {
   order: Order;
@@ -92,6 +100,12 @@ export default function AvailableOrderCard({
       <CardContent className="p-3 sm:p-4">
         <div className="flex items-center justify-between mb-3">
           <span className="font-medium text-sm">#{order.orderId}</span>
+          <Badge
+            className={statusColors[order.status as keyof typeof statusColors]}
+            variant="secondary"
+          >
+            {order.status}
+          </Badge>
           <div className="text-right">
             <div className="font-bold flex items-center">
               <IndianRupee className="h-4 w-4" />
@@ -114,9 +128,9 @@ export default function AvailableOrderCard({
           <div className="flex items-center justify-between">
             <div className="font-medium text-sm">{order.customer.name}</div>
             <div className="flex gap-1">
-              <Button size="sm" variant="outline" onClick={handleCall}>
+              {/* <Button size="sm" variant="outline" onClick={handleCall}>
                 <Phone className="h-3 w-3" />
-              </Button>
+              </Button> */}
               {order.deliveryLocation && (
                 <Button size="sm" variant="outline" onClick={handleOpenMap}>
                   <MapPin className="h-3 w-3" />
