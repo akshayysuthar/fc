@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import Header from "@/components/fulfillment/header"
 import StatsCards from "@/components/fulfillment/stats-cards"
 import OrderCard from "@/components/fulfillment/order-card"
+import OrderTabs from "@/components/fulfillment/order-tabs"
 
 interface Order {
   _id: string
@@ -24,11 +25,13 @@ interface Order {
   createdAt: string
   totalPrice: number
   items: Array<{
+    _id: string
     name: string
     count: number
     price: number
     branch: string
     status: string
+    unit?: string
   }>
   slot: {
     label: string
@@ -46,6 +49,7 @@ export default function FulfillmentDashboard() {
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(false)
   const [branchId, setBranchId] = useState<string | null>(null)
+  const [selectedTab, setSelectedTab] = useState<"available" | "ready">("available")
   const router = useRouter()
 
   useEffect(() => {
@@ -72,55 +76,49 @@ export default function FulfillmentDashboard() {
     }
   }
 
-  
-
   const handleLogout = () => {
     localStorage.removeItem("branchId")
     router.push("/fulfillment/login")
   }
 
-  const getStats = () => {
-    if (!branchId) return { pending: 0, packing: 0, packed: 0, total: 0 }
+  // Sort orders by slot time
+  const sortOrdersBySlot = (orders: Order[]) => {
+    return [...orders].sort((a, b) => {
+      // First compare by date
+      const dateA = new Date(a.slot.date).getTime()
+      const dateB = new Date(b.slot.date).getTime()
+      if (dateA !== dateB) return dateA - dateB
 
-    const myItems = orders.flatMap((order) => order.items.filter((item) => item.branch === branchId))
+      // Then compare by start time
+      const timeA = a.slot.startTime
+      const timeB = b.slot.startTime
+      return timeA.localeCompare(timeB)
+    })
+  }
+
+  const getStats = () => {
+    const totalOrders = orders.length
+    const pendingOrders = orders.filter((order) => order.status === "pending" || order.status === "packing").length
+    const packedOrders = orders.filter((order) => order.status === "packed").length
+    const readyOrders = orders.filter((order) => order.status === "ready").length
 
     return {
-      pending: myItems.filter((item) => item.status === "pending").length,
-      packing: myItems.filter((item) => item.status === "packing").length,
-      packed: myItems.filter((item) => item.status === "packed").length,
-      total: orders.length,
+      totalOrders,
+      pendingOrders,
+      packedOrders,
+      readyOrders,
     }
   }
 
-  const getSlotStats = () => {
-    if (!branchId) return {}
-
-    const slotStats: { [key: string]: { pending: number; packing: number; packed: number; total: number } } = {}
-
-    orders.forEach((order) => {
-      const slotKey = `${order.slot.label} (${new Date(order.slot.date).toLocaleDateString("en-IN", {
-        day: "numeric",
-        month: "short",
-      })})`
-
-      if (!slotStats[slotKey]) {
-        slotStats[slotKey] = { pending: 0, packing: 0, packed: 0, total: 0 }
-      }
-
-      const myItems = order.items.filter((item) => item.branch === branchId)
-      slotStats[slotKey].total += 1
-      slotStats[slotKey].pending += myItems.filter((item) => item.status === "pending").length
-      slotStats[slotKey].packing += myItems.filter((item) => item.status === "packing").length
-      slotStats[slotKey].packed += myItems.filter((item) => item.status === "packed").length
-    })
-
-    return slotStats
-  }
-
-  
-
   const stats = getStats()
-  const slotStats = getSlotStats()
+
+  const availableOrders = orders.filter((order) => order.status !== "ready")
+  const readyOrders = orders.filter((order) => order.status === "ready")
+
+  const sortedAvailableOrders = sortOrdersBySlot(availableOrders)
+  const sortedReadyOrders = sortOrdersBySlot(readyOrders)
+
+  const displayOrders = selectedTab === "available" ? sortedAvailableOrders : sortedReadyOrders
 
   if (!branchId) {
     return (
@@ -135,17 +133,28 @@ export default function FulfillmentDashboard() {
       <Header branchId={branchId} onRefresh={() => fetchOrders(branchId)} onLogout={handleLogout} />
 
       <div className="p-3 sm:p-4">
-        <StatsCards stats={stats} slotStats={slotStats} />
+        <StatsCards stats={stats} />
+
+        <OrderTabs
+          selectedTab={selectedTab}
+          onTabChange={setSelectedTab}
+          counts={{
+            available: availableOrders.length,
+            ready: readyOrders.length,
+          }}
+        />
 
         <div className="mt-4 sm:mt-6">
-          <h2 className="text-lg font-semibold mb-4">Pending Orders</h2>
+          <h2 className="text-lg font-semibold mb-4">
+            {selectedTab === "available" ? "Available Orders" : "Ready Orders"}
+          </h2>
           {loading ? (
             <div className="text-center py-8 text-gray-500">Loading orders...</div>
-          ) : orders.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">No pending orders</div>
+          ) : displayOrders.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">No {selectedTab} orders</div>
           ) : (
             <div className="space-y-4">
-              {orders.map((order) => (
+              {displayOrders.map((order) => (
                 <OrderCard key={order._id} order={order} branchId={branchId} onRefresh={() => fetchOrders(branchId)} />
               ))}
             </div>

@@ -96,7 +96,7 @@ export default function OrderDetailCustomerInfo({ order }: CustomerInfoProps) {
         <div className="space-y-2 text-sm">
           <div className="flex justify-between">
             <span className="text-gray-600">Phone:</span>
-            {/* <span>{order.customer.phone}</span> */}
+            <span>{order.customer.phone}</span>
           </div>
           <div className="flex justify-between">
             <span className="text-gray-600">Address:</span>

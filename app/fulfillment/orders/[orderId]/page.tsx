@@ -2,13 +2,14 @@
 
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { Package, Clock, IndianRupee } from "lucide-react";
+import { Package, Clock, IndianRupee, AlertCircle, Undo } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import OrderDetailHeader from "@/components/fulfillment/order-detail-header";
-import BranchProgress from "@/components/fulfillment/branch-progress";
 import OrderSummary from "@/components/fulfillment/order-summary";
+import ItemCancelDialog from "@/components/fulfillment/item-cancel-dialog";
 
 interface OrderDetail {
   _id: string;
@@ -33,6 +34,9 @@ interface OrderDetail {
     variantId: string;
     branch: { _id: string };
     status: string;
+    unit?: string;
+    isCancelled?: boolean;
+    cancelReason?: string;
     product: {
       _id: string;
       name: string;
@@ -61,6 +65,7 @@ const itemStatusColors = {
   pending: "bg-yellow-100 text-yellow-800",
   packing: "bg-orange-100 text-orange-800",
   packed: "bg-green-100 text-green-800",
+  cancelled: "bg-red-100 text-red-800",
 };
 
 export default function FulfillmentOrderDetail() {
@@ -71,6 +76,13 @@ export default function FulfillmentOrderDetail() {
   const [loading, setLoading] = useState(true);
   const [branchId, setBranchId] = useState<string | null>(null);
   const [updatingItems, setUpdatingItems] = useState<Set<string>>(new Set());
+  const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [itemToCancel, setItemToCancel] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
+  const [selectedStatus, setSelectedStatus] = useState<string>("pending");
 
   useEffect(() => {
     const storedBranchId = localStorage.getItem("branchId");
@@ -142,6 +154,41 @@ export default function FulfillmentOrderDetail() {
     }
   };
 
+  const updateSelectedItemsStatus = async (newStatus: string) => {
+    if (!branchId || selectedItems.size === 0) return;
+
+    try {
+      setLoading(true);
+
+      // Update each selected item
+      const updatePromises = Array.from(selectedItems).map((itemId) =>
+        fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/orders/${orderId}/items/${itemId}/packing-status`,
+          {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              branchId,
+              newStatus,
+            }),
+          }
+        )
+      );
+
+      await Promise.all(updatePromises);
+
+      // Clear selection
+      setSelectedItems(new Set());
+
+      // Refresh order data
+      await fetchOrderDetails();
+    } catch (error) {
+      console.error("Failed to update items status:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const updateOrderStatus = async (newStatus: string) => {
     if (!branchId) return;
 
@@ -166,7 +213,95 @@ export default function FulfillmentOrderDetail() {
     }
   };
 
-  if (loading) {
+  const handleCancelItem = async (reason: string, notes?: string) => {
+    if (!itemToCancel) return;
+
+    try {
+      setLoading(true);
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/order/cancel-item/${orderId}/${itemToCancel.id}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            reason,
+            notes,
+          }),
+        }
+      );
+
+      if (!response.ok) throw new Error("Failed to cancel item");
+
+      // Close dialog and refresh data
+      setCancelDialogOpen(false);
+      setItemToCancel(null);
+      await fetchOrderDetails();
+    } catch (error) {
+      console.error("Failed to cancel item:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUndoCancelItem = async (itemId: string) => {
+    try {
+      setLoading(true);
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/order/undo-cancel-item/${orderId}/${itemId}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+
+      if (!response.ok) throw new Error("Failed to undo cancel item");
+
+      // Refresh data
+      await fetchOrderDetails();
+    } catch (error) {
+      console.error("Failed to undo cancel item:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const toggleItemSelection = (itemId: string) => {
+    setSelectedItems((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(itemId)) {
+        newSet.delete(itemId);
+      } else {
+        newSet.add(itemId);
+      }
+      return newSet;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (
+      selectedItems.size ===
+      myBranchItems.filter((item) => !item.isCancelled).length
+    ) {
+      // If all are selected, unselect all
+      setSelectedItems(new Set());
+    } else {
+      // Otherwise, select all non-cancelled items
+      setSelectedItems(
+        new Set(
+          myBranchItems
+            .filter((item) => !item.isCancelled)
+            .map((item) => item._id)
+        )
+      );
+    }
+  };
+
+  const openCancelDialog = (itemId: string, itemName: string) => {
+    setItemToCancel({ id: itemId, name: itemName });
+    setCancelDialogOpen(true);
+  };
+
+  if (loading && !order) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div>Loading...</div>
@@ -199,18 +334,11 @@ export default function FulfillmentOrderDetail() {
     packed: myBranchItems.filter((item) => item.status === "packed").length,
   };
 
-  const getItemActions = (item: any) => {
-    if (item.branch._id !== branchId) return [];
-
-    switch (item.status) {
-      case "pending":
-        return [{ label: "Start Packing", status: "packing" }];
-      case "packing":
-        return [{ label: "Mark as Packed", status: "packed" }];
-      default:
-        return [];
-    }
-  };
+  const hasSelectedItems = selectedItems.size > 0;
+  const allSelected =
+    selectedItems.size ===
+      myBranchItems.filter((item) => !item.isCancelled).length &&
+    myBranchItems.filter((item) => !item.isCancelled).length > 0;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -221,8 +349,6 @@ export default function FulfillmentOrderDetail() {
       />
 
       <div className="p-3 sm:p-4 space-y-4">
-        <BranchProgress stats={myBranchStats} />
-
         <OrderSummary
           order={order}
           onUpdateStatus={updateOrderStatus}
@@ -239,14 +365,81 @@ export default function FulfillmentOrderDetail() {
               </CardTitle>
             </CardHeader>
             <CardContent className="pt-0">
+              {/* Select All & Bulk Actions */}
+              <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      checked={allSelected}
+                      onCheckedChange={toggleSelectAll}
+                      id="select-all"
+                    />
+                    <label
+                      htmlFor="select-all"
+                      className="text-sm font-medium cursor-pointer"
+                    >
+                      {allSelected ? "Unselect All" : "Select All"}
+                    </label>
+                  </div>
+                  <div className="text-sm">
+                    {selectedItems.size > 0 && (
+                      <span className="font-medium">
+                        {selectedItems.size} items selected
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Status Update Controls */}
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <select
+                    className="flex h-9 w-full sm:w-auto rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                    value={selectedStatus}
+                    onChange={(e) => setSelectedStatus(e.target.value)}
+                    disabled={!hasSelectedItems}
+                  >
+                    <option value="pending">Pending</option>
+                    <option value="packing">Packing</option>
+                    <option value="packed">Packed</option>
+                  </select>
+                  <Button
+                    onClick={() => updateSelectedItemsStatus(selectedStatus)}
+                    disabled={!hasSelectedItems || loading}
+                    className="w-full sm:w-auto"
+                  >
+                    Update Selected Items
+                  </Button>
+                </div>
+              </div>
+
               <div className="space-y-3">
                 {myBranchItems.map((item) => {
-                  const actions = getItemActions(item);
                   const isUpdating = updatingItems.has(item._id);
+                  const isSelected = selectedItems.has(item._id);
+                  const isCancelled = item.isCancelled === true;
 
                   return (
-                    <div key={item._id} className="border rounded-lg p-3">
+                    <div
+                      key={item._id}
+                      className={`border rounded-lg p-3 ${
+                        isCancelled
+                          ? "bg-red-50 border-red-200"
+                          : isSelected
+                          ? "bg-blue-50 border-blue-200"
+                          : ""
+                      }`}
+                    >
                       <div className="flex items-center gap-3 mb-3">
+                        {!isCancelled && (
+                          <Checkbox
+                            checked={isSelected}
+                            onCheckedChange={() =>
+                              toggleItemSelection(item._id)
+                            }
+                            className="h-5 w-5"
+                            disabled={isCancelled}
+                          />
+                        )}
                         <img
                           src={item.image || "/placeholder.svg"}
                           alt={item.name}
@@ -257,50 +450,56 @@ export default function FulfillmentOrderDetail() {
                             {item.name}
                           </div>
                           <div className="text-xs text-gray-600">
-                            Qty: {item.count} ×{" "}
-                            <IndianRupee className="h-3 w-3 inline" />
-                            {item.price} ={" "}
-                            <IndianRupee className="h-3 w-3 inline" />
-                            {item.itemTotal}
+                            Qty: {item.count} {item.unit && `(${item.unit})`} •
+                            MRP: <IndianRupee className="h-3 w-3 inline" />
+                            {item.price}
                           </div>
+                          {isCancelled && item.cancelReason && (
+                            <div className="text-xs text-red-600 mt-1">
+                              Cancelled: {item.cancelReason}
+                            </div>
+                          )}
                         </div>
                         <Badge
                           className={
                             itemStatusColors[
-                              item.status as keyof typeof itemStatusColors
+                              isCancelled
+                                ? "cancelled"
+                                : (item.status as keyof typeof itemStatusColors)
                             ]
                           }
                           variant="secondary"
                         >
-                          {item.status}
+                          {isCancelled ? "Cancelled" : item.status}
                         </Badge>
                       </div>
 
-                      {actions.length > 0 && (
-                        <div className="flex gap-2">
-                          {actions.map((action, index) => (
-                            <Button
-                              key={index}
-                              size="sm"
-                              onClick={() =>
-                                updateItemStatus(item._id, action.status)
-                              }
-                              disabled={isUpdating}
-                              className="flex-1"
-                            >
-                              {isUpdating ? "Updating..." : action.label}
-                            </Button>
-                          ))}
-                          {/* {order.status !== "cancelled" && (
-                            <Button
-                              variant="destructive"
-                              onClick={() => console.log("")}
-                            >
-                              Cancel Order
-                            </Button>
-                          )} */}
-                        </div>
-                      )}
+                      <div className="flex gap-2">
+                        {isCancelled ? (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-blue-600 border-blue-200 hover:bg-blue-50"
+                            onClick={() => handleUndoCancelItem(item._id)}
+                            disabled={isUpdating}
+                          >
+                            <Undo className="h-4 w-4 mr-1" />
+                            Undo Cancel
+                          </Button>
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-red-600 border-red-200 hover:bg-red-50"
+                            onClick={() =>
+                              openCancelDialog(item._id, item.name)
+                            }
+                          >
+                            <AlertCircle className="h-4 w-4 mr-1" />
+                            Cancel
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   );
                 })}
@@ -336,11 +535,9 @@ export default function FulfillmentOrderDetail() {
                           {item.name}
                         </div>
                         <div className="text-xs text-gray-600">
-                          Qty: {item.count} ×{" "}
-                          <IndianRupee className="h-3 w-3 inline" />
-                          {item.price} ={" "}
-                          <IndianRupee className="h-3 w-3 inline" />
-                          {item.itemTotal}
+                          Qty: {item.count} {item.unit && `(${item.unit})`} •
+                          MRP: <IndianRupee className="h-3 w-3 inline" />
+                          {item.price}
                         </div>
                         <div className="text-xs text-gray-500">
                           Handled by other branch
@@ -349,12 +546,14 @@ export default function FulfillmentOrderDetail() {
                       <Badge
                         className={
                           itemStatusColors[
-                            item.status as keyof typeof itemStatusColors
+                            item.isCancelled
+                              ? "cancelled"
+                              : (item.status as keyof typeof itemStatusColors)
                           ]
                         }
                         variant="secondary"
                       >
-                        {item.status}
+                        {item.isCancelled ? "Cancelled" : item.status}
                       </Badge>
                     </div>
                   </div>
@@ -363,29 +562,15 @@ export default function FulfillmentOrderDetail() {
             </CardContent>
           </Card>
         )}
-
-        {/* Delivery Slot */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base sm:text-lg flex items-center gap-2">
-              <Clock className="h-5 w-5" />
-              Delivery Slot
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0">
-            <div className="space-y-2">
-              <div className="font-medium">{order.slot.label}</div>
-              <div className="text-sm text-gray-600">
-                {new Date(order.slot.date).toLocaleDateString()} •{" "}
-                {order.slot.startTime} - {order.slot.endTime}
-              </div>
-              <div className="text-sm text-gray-600">
-                Order placed: {new Date(order.createdAt).toLocaleDateString()}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
       </div>
+
+      {/* Item Cancel Dialog */}
+      <ItemCancelDialog
+        open={cancelDialogOpen}
+        onOpenChange={setCancelDialogOpen}
+        onCancel={handleCancelItem}
+        itemName={itemToCancel?.name || ""}
+      />
     </div>
   );
 }

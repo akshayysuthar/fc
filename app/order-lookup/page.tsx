@@ -1,36 +1,36 @@
-"use client"
+"use client";
 
-import type React from "react"
+import type React from "react";
 
-import { useState } from "react"
-import { Search, Package, ArrowRight } from "lucide-react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Badge } from "@/components/ui/badge"
-import Link from "next/link"
+import { useState } from "react";
+import { Search, Package, ArrowRight } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import Link from "next/link";
 
 interface OrderLookupResult {
-  _id: string
-  orderId: string
+  _id: string;
+  orderId: string;
   customer: {
-    name: string
+    name: string;
     address: {
-      area: string
-      pinCode: string
-    }
-  }
-  status: string
-  totalPrice: number
+      area: string;
+      pinCode: string;
+    };
+  };
+  status: string;
+  totalPrice: number;
   items: Array<{
-    name: string
-    count: number
-  }>
+    name: string;
+    count: number;
+  }>;
   slot: {
-    label: string
-    date: string
-  }
+    label: string;
+    date: string;
+  };
 }
 
 const statusColors = {
@@ -41,46 +41,48 @@ const statusColors = {
   assigned: "bg-blue-100 text-blue-800",
   arriving: "bg-orange-100 text-orange-800",
   delivered: "bg-gray-100 text-gray-800",
-}
+};
 
 export default function OrderLookupPage() {
-  const [orderId, setOrderId] = useState("")
-  const [order, setOrder] = useState<OrderLookupResult | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState("")
+  const [orderId, setOrderId] = useState("");
+  const [order, setOrder] = useState<OrderLookupResult | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const fetchOrder = async () => {
-    if (!orderId.trim()) return
+    if (!orderId.trim()) return;
 
     try {
-      setLoading(true)
-      setError("")
-      setOrder(null)
+      setLoading(true);
+      setError("");
+      setOrder(null);
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/orders/${orderId.trim()}`)
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/orders/${orderId.trim()}`
+      );
 
       if (!response.ok) {
-        throw new Error("Order not found")
+        throw new Error("Order not found");
       }
 
-      const data = await response.json()
-      setOrder(data)
+      const data = await response.json();
+      setOrder(data);
     } catch (error) {
-      console.error("Failed to fetch order:", error)
-      setError("Order not found. Please check the Order ID and try again.")
+      console.error("Failed to fetch order:", error);
+      setError("Order not found. Please check the Order ID and try again.");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    fetchOrder()
-  }
+    e.preventDefault();
+    fetchOrder();
+  };
 
   const getTotalQty = (items: Array<{ count: number }>) => {
-    return items.reduce((total, item) => total + item.count, 0)
-  }
+    return items.reduce((total, item) => total + item.count, 0);
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -89,8 +91,12 @@ export default function OrderLookupPage() {
         <div className="p-3 sm:p-4">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-lg sm:text-xl font-bold text-gray-900">Order Lookup</h1>
-              <p className="text-xs sm:text-sm text-gray-600">Search for any order by Order ID</p>
+              <h1 className="text-lg sm:text-xl font-bold text-gray-900">
+                Order Lookup
+              </h1>
+              <p className="text-xs sm:text-sm text-gray-600">
+                Search for any order by Order ID
+              </p>
             </div>
             <Button asChild variant="outline" size="sm">
               <Link href="/">← Home</Link>
@@ -152,13 +158,20 @@ export default function OrderLookupPage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <h3 className="font-bold text-lg">#{order.orderId}</h3>
-                    <Badge className={statusColors[order.status as keyof typeof statusColors]} variant="secondary">
+                    <Badge
+                      className={
+                        statusColors[order.status as keyof typeof statusColors]
+                      }
+                      variant="secondary"
+                    >
                       {order.status}
                     </Badge>
                   </div>
                   <div className="text-right">
                     <div className="font-bold text-lg">₹{order.totalPrice}</div>
-                    <div className="text-sm text-gray-600">{getTotalQty(order.items)} items</div>
+                    <div className="text-sm text-gray-600">
+                      {getTotalQty(order.items)} items
+                    </div>
                   </div>
                 </div>
 
@@ -171,7 +184,8 @@ export default function OrderLookupPage() {
                   <div>
                     <div className="text-sm text-gray-600">Delivery Area</div>
                     <div className="font-medium">
-                      {order.customer.address.area}, {order.customer.address.pinCode}
+                      {order.customer.address?.area},{" "}
+                      {order.customer.address?.pinCode}
                     </div>
                   </div>
                   <div>
@@ -180,7 +194,9 @@ export default function OrderLookupPage() {
                   </div>
                   <div>
                     <div className="text-sm text-gray-600">Date</div>
-                    <div className="font-medium">{new Date(order.slot.date).toLocaleDateString()}</div>
+                    <div className="font-medium">
+                      {new Date(order.slot.date).toLocaleDateString()}
+                    </div>
                   </div>
                 </div>
 
@@ -189,7 +205,10 @@ export default function OrderLookupPage() {
                   <div className="text-sm text-gray-600 mb-2">Order Items</div>
                   <div className="space-y-2">
                     {order.items.map((item, index) => (
-                      <div key={index} className="flex justify-between items-center p-2 bg-white border rounded">
+                      <div
+                        key={index}
+                        className="flex justify-between items-center p-2 bg-white border rounded"
+                      >
                         <span className="font-medium">{item.name}</span>
                         <span className="text-gray-600">Qty: {item.count}</span>
                       </div>
@@ -218,5 +237,5 @@ export default function OrderLookupPage() {
         )}
       </div>
     </div>
-  )
+  );
 }
