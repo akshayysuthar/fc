@@ -1,146 +1,206 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { useParams, useRouter } from "next/navigation"
-import { ArrowLeft, MapPin } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import Link from "next/link"
-import OrderDetailCustomerInfo from "@/components/delivery/order-detail-customer-info"
-import OrderItemsList from "@/components/delivery/order-items-list"
-import PaymentCollection from "@/components/delivery/payment-collection"
-import LocationVerification from "@/components/delivery/location-verification"
+import { useState, useEffect } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { ArrowLeft, MapPin } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import Link from "next/link";
+import OrderDetailCustomerInfo from "@/components/delivery/order-detail-customer-info";
+import OrderItemsList from "@/components/delivery/order-items-list";
+import PaymentCollection from "@/components/delivery/payment-collection";
+import LocationVerification from "@/components/delivery/location-verification";
 
 const statusColors = {
   ready: "bg-green-100 text-green-800",
   assigned: "bg-blue-100 text-blue-800",
   arriving: "bg-orange-100 text-orange-800",
   delivered: "bg-gray-100 text-gray-800",
-}
+};
 
 export default function DeliveryOrderDetailPage() {
-  const params = useParams()
-  const router = useRouter()
-  const orderId = params.orderId as string
-  const [order, setOrder] = useState<any>(null)
-  const [loading, setLoading] = useState(false)
-  const [userId, setUserId] = useState<string | null>(null)
-  const [currentStep, setCurrentStep] = useState<"pickup" | "delivery" | "verification">("pickup")
-  const [cancelDialogOpen, setCancelDialogOpen] = useState(false)
+  const params = useParams();
+  const router = useRouter();
+  const orderId = params.orderId as string;
+  const [order, setOrder] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [currentStep, setCurrentStep] = useState<
+    "pickup" | "delivery" | "verification"
+  >("pickup");
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
 
   useEffect(() => {
-    const storedUserId = localStorage.getItem("deliveryPartnerId")
+    const storedUserId = localStorage.getItem("deliveryPartnerId");
     if (!storedUserId) {
-      router.push("/delivery/login")
-      return
+      router.push("/delivery/login");
+      return;
     }
-    setUserId(storedUserId)
-  }, [])
+    setUserId(storedUserId);
+  }, []);
 
   useEffect(() => {
     if (orderId && userId) {
-      fetchOrderDetails()
+      fetchOrderDetails();
     }
-  }, [orderId, userId])
+  }, [orderId, userId]);
 
   const fetchOrderDetails = async () => {
     try {
-      setLoading(true)
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/orders/branch/${orderId}`)
-      const data = await response.json()
-      setOrder(data)
+      setLoading(true);
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/orders/branch/${orderId}`
+      );
+      const data = await response.json();
+      setOrder(data);
 
       // Determine current step based on status
       if (data.status === "assigned") {
-        setCurrentStep("pickup")
+        setCurrentStep("pickup");
       } else if (data.status === "arriving") {
-        setCurrentStep("delivery")
+        setCurrentStep("delivery");
       }
     } catch (error) {
-      console.error("Failed to fetch order details:", error)
+      console.error("Failed to fetch order details:", error);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const updateOrderStatus = async (newStatus: string) => {
-    if (!userId) return
+    if (!userId) return;
 
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/orders/delivery/${orderId}/status`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: newStatus, userId }),
-      })
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/orders/delivery/${orderId}/status`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: newStatus, userId }),
+        }
+      );
 
-      if (!response.ok) throw new Error("Failed to update status")
+      if (!response.ok) throw new Error("Failed to update status");
 
-      setOrder({ ...order, status: newStatus })
+      setOrder({ ...order, status: newStatus });
       if (newStatus === "arriving") {
-        setCurrentStep("delivery")
+        setCurrentStep("delivery");
       }
     } catch (error) {
-      console.error("Failed to update order status:", error)
+      console.error("Failed to update order status:", error);
     }
-  }
+  };
 
   const cancelOrder = async () => {
-    if (!userId) return
+    if (!userId) return;
 
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/orders/delivery/${orderId}/status`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "cancelled", userId }),
-      })
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/orders/delivery/${orderId}/status`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: "cancelled", userId }),
+        }
+      );
 
-      if (!response.ok) throw new Error("Failed to cancel order")
+      if (!response.ok) throw new Error("Failed to cancel order");
 
-      router.push("/delivery")
+      router.push("/delivery");
     } catch (error) {
-      console.error("Failed to cancel order:", error)
+      console.error("Failed to cancel order:", error);
     }
-  }
+  };
 
-  const handleCashPayment = (amount: number) => {
-    setCurrentStep("verification")
-  }
+  const handleCashPayment = async (amount: number) => {
+    if (!userId) return;
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/orders/delivery/${orderId}/status`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            status: "payment_collected",
+            userId,
+            paymentMethod: "cash",
+            amount,
+          }),
+        }
+      );
+      if (!response.ok) throw new Error("Failed to update payment status");
+      setOrder({ ...order, status: "payment_collected" });
+      setCurrentStep("verification");
+    } catch (error) {
+      console.error("Failed to update payment status:", error);
+    }
+  };
 
-  const handleUPIPayment = () => {
-    setCurrentStep("verification")
-  }
+  const handleUPIPayment = async () => {
+    if (!userId) return;
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/orders/delivery/${orderId}/status`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            status: "delivered",
+            userId,
+            paymentMethod: "upi",
+            paymentStatus: "paid",
+          }),
+        }
+      );
+      if (!response.ok) throw new Error("Failed to update payment status");
+      setOrder({ ...order, status: "payment_collected" });
+      setCurrentStep("verification");
+    } catch (error) {
+      console.error("Failed to update payment status:", error);
+    }
+  };
 
   const handleLocationVerification = async (
     isCorrect: boolean,
-    actualLocation?: { latitude: number; longitude: number; notes?: string },
+    actualLocation?: { latitude: number; longitude: number; notes?: string }
   ) => {
     try {
       // Log location verification (you can add API call here later)
-      console.log("Location verification:", { isCorrect, actualLocation })
+      console.log("Location verification:", { isCorrect, actualLocation });
 
       // Update order status to delivered
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/orders/delivery/${orderId}/status`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "delivered", userId }),
-      })
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/orders/delivery/${orderId}/status`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: "delivered", userId }),
+        }
+      );
 
-      if (!response.ok) throw new Error("Failed to update status")
+      if (!response.ok) throw new Error("Failed to update status");
 
       // Navigate back to delivery dashboard
-      router.push("/delivery")
+      router.push("/delivery");
     } catch (error) {
-      console.error("Failed to complete delivery:", error)
+      console.error("Failed to complete delivery:", error);
     }
-  }
+  };
 
   if (loading || !userId || !order) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div>Loading...</div>
       </div>
-    )
+    );
   }
 
   // Pickup Step
@@ -158,7 +218,12 @@ export default function DeliveryOrderDetailPage() {
               </Button>
               <div className="flex-1">
                 <h1 className="text-base sm:text-lg font-bold">Pickup Order</h1>
-                <Badge className={statusColors[order.status as keyof typeof statusColors]} variant="secondary">
+                <Badge
+                  className={
+                    statusColors[order.status as keyof typeof statusColors]
+                  }
+                  variant="secondary"
+                >
                   {order.status}
                 </Badge>
               </div>
@@ -173,14 +238,18 @@ export default function DeliveryOrderDetailPage() {
           <div className="space-y-3">
             <h3 className="font-medium">Items by Branch</h3>
             {order.pickupLocations?.map((location: any, index: number) => {
-              const branchItems = order.items.filter((item: any) => item.branch._id === location.branch._id)
+              const branchItems = order.items.filter(
+                (item: any) => item.branch._id === location.branch._id
+              );
 
               return (
                 <div key={index} className="bg-white rounded-lg p-4 border">
                   <div className="flex items-center justify-between mb-3">
                     <div>
                       <div className="font-medium">Branch {index + 1}</div>
-                      <div className="text-sm text-gray-600">{location.address}</div>
+                      <div className="text-sm text-gray-600">
+                        {location.address}
+                      </div>
                     </div>
                     <Button size="sm" variant="outline" asChild>
                       <a
@@ -195,25 +264,34 @@ export default function DeliveryOrderDetailPage() {
                   </div>
 
                   <div className="space-y-2">
-                    <div className="text-sm font-medium">Items ({branchItems.length}):</div>
+                    <div className="text-sm font-medium">
+                      Items ({branchItems.length}):
+                    </div>
                     {branchItems.map((item: any, itemIndex: number) => (
-                      <div key={itemIndex} className="flex items-center gap-2 p-2 bg-gray-50 rounded">
+                      <div
+                        key={itemIndex}
+                        className="flex items-center gap-2 p-2 bg-gray-50 rounded"
+                      >
                         <img
                           src={item.image || "/placeholder.svg"}
                           alt={item.name}
                           className="w-8 h-8 object-cover rounded"
                         />
                         <div className="flex-1 min-w-0">
-                          <div className="text-xs font-medium truncate">{item.name}</div>
-                          <div className="text-xs text-gray-600">Qty: {item.count}</div>
+                          <div className="text-xs font-medium truncate">
+                            {item.name}
+                          </div>
+                          <div className="text-xs text-gray-600">
+                            Qty: {item.count}
+                          </div>
                         </div>
                         <Badge
                           className={
                             item.status === "pending"
                               ? "bg-yellow-100 text-yellow-800"
                               : item.status === "packing"
-                                ? "bg-orange-100 text-orange-800"
-                                : "bg-green-100 text-green-800"
+                              ? "bg-orange-100 text-orange-800"
+                              : "bg-green-100 text-green-800"
                           }
                           variant="secondary"
                         >
@@ -223,7 +301,7 @@ export default function DeliveryOrderDetailPage() {
                     ))}
                   </div>
                 </div>
-              )
+              );
             })}
           </div>
         </div>
@@ -242,17 +320,21 @@ export default function DeliveryOrderDetailPage() {
                   <DialogTitle>Are you sure?</DialogTitle>
                 </DialogHeader>
                 <p className="text-sm text-gray-600">
-                  Do you really want to cancel this order? This action cannot be undone.
+                  Do you really want to cancel this order? This action cannot be
+                  undone.
                 </p>
                 <DialogFooter className="mt-4">
-                  <Button variant="outline" onClick={() => setCancelDialogOpen(false)}>
+                  <Button
+                    variant="outline"
+                    onClick={() => setCancelDialogOpen(false)}
+                  >
                     No, go back
                   </Button>
                   <Button
                     variant="destructive"
                     onClick={() => {
-                      cancelOrder()
-                      setCancelDialogOpen(false)
+                      cancelOrder();
+                      setCancelDialogOpen(false);
                     }}
                   >
                     Yes, Cancel Order
@@ -270,7 +352,7 @@ export default function DeliveryOrderDetailPage() {
           </div>
         </div>
       </div>
-    )
+    );
   }
 
   // Location Verification Step
@@ -287,8 +369,13 @@ export default function DeliveryOrderDetailPage() {
                 </Link>
               </Button>
               <div className="flex-1">
-                <h1 className="text-base sm:text-lg font-bold">Complete Delivery</h1>
-                <Badge className="bg-green-100 text-green-800" variant="secondary">
+                <h1 className="text-base sm:text-lg font-bold">
+                  Complete Delivery
+                </h1>
+                <Badge
+                  className="bg-green-100 text-green-800"
+                  variant="secondary"
+                >
                   Payment Collected
                 </Badge>
               </div>
@@ -301,7 +388,7 @@ export default function DeliveryOrderDetailPage() {
           <LocationVerification onVerify={handleLocationVerification} />
         </div>
       </div>
-    )
+    );
   }
 
   // Delivery Step
@@ -318,7 +405,12 @@ export default function DeliveryOrderDetailPage() {
             </Button>
             <div className="flex-1">
               <h1 className="text-base sm:text-lg font-bold">Delivery Order</h1>
-              <Badge className={statusColors[order.status as keyof typeof statusColors]} variant="secondary">
+              <Badge
+                className={
+                  statusColors[order.status as keyof typeof statusColors]
+                }
+                variant="secondary"
+              >
                 {order.status}
               </Badge>
             </div>
@@ -341,5 +433,5 @@ export default function DeliveryOrderDetailPage() {
         )}
       </div>
     </div>
-  )
+  );
 }
