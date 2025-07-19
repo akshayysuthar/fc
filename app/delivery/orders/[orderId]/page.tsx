@@ -238,82 +238,72 @@ export default function DeliveryOrderDetailPage() {
 
           {/* Items by Branch */}
           <div className="space-y-3">
-            <h3 className="font-medium">Items by Branch</h3>
-            {order.pickupLocations?.map((location: any, index: number) => {
-              const branchItems = order.items.filter(
-                (item: any) => item.branch._id === location.branch._id
-              );
+            {/* <h3 className="font-medium">Items by Branch</h3> */}
+            <div className="bg-white rounded-lg p-4 border">
+              {order.pickupLocations?.map((location: any, index: number) => (
+                <li key={index}>
+                  {location.address}{" "}
+                  <a
+                    href={`https://www.google.com/maps/search/?api=1&query=${location.latitude},${location.longitude}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-600 underline ml-1"
+                  >
+                    Navigate
+                  </a>
+                </li>
+              ))}
+              <div className="mb-3">
+                {/* <div className="font-medium">Pickup Locations</div> */}
+              </div>
 
-              return (
-                <div key={index} className="bg-white rounded-lg p-4 border">
-                  <div className="flex items-center justify-between mb-3">
-                    <div>
-                      <div className="font-medium">Branch {index + 1}</div>
-                      <div className="text-sm text-gray-600">
-                        {location.address}
-                      </div>
-                    </div>
-                    <Button size="sm" variant="outline" asChild>
-                      <a
-                        href={`https://www.google.com/maps/search/?api=1&query=${location.latitude},${location.longitude}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        <MapPin className="h-4 w-4 mr-1" />
-                        Navigate
-                      </a>
-                    </Button>
-                  </div>
-
-                  <div className="space-y-2">
-                    <div className="text-sm font-medium">
-                      Items ({branchItems.length}):
-                    </div>
-                    {branchItems.map((item: any, itemIndex: number) => (
-                      <div
-                        key={itemIndex}
-                        className="flex items-center gap-2 p-2 bg-gray-50 rounded"
-                      >
-                        <img
-                          src={item.image || "/placeholder.svg"}
-                          alt={item.name}
-                          className="w-8 h-8 object-cover rounded"
-                        />
-                        <div className="flex-1 min-w-0">
-                          <div className="text-xs font-medium truncate">
-                            {item.name}
-                          </div>
-                          <div className="text-xs text-gray-600">
-                            Qty: {item.count} {item.unit && `(${item.unit})`} • 
-                            MRP: <IndianRupee className="h-3 w-3 inline" />
-                            {item.price}
-                          </div>
-                        </div>
-                        <Badge
-                          className={
-                            item.status === "pending"
-                              ? "bg-yellow-100 text-yellow-800"
-                              : item.status === "packing"
-                              ? "bg-orange-100 text-orange-800"
-                              : "bg-green-100 text-green-800"
-                          }
-                          variant="secondary"
-                        >
-                          {item.status}
-                        </Badge>
-                      </div>
-                    ))}
-                  </div>
+              <div className="space-y-2">
+                <div className="text-sm font-medium">
+                  All Items ({order.items.length}):
                 </div>
-              );
-            })}
+                {order.items.map((item: any, itemIndex: number) => (
+                  <div
+                    key={itemIndex}
+                    className="flex items-center gap-2 p-2 bg-gray-50 rounded"
+                  >
+                    <img
+                      src={item.image || "/placeholder.svg"}
+                      alt={item.name}
+                      className="w-8 h-8 object-cover rounded"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-xs font-medium truncate">
+                        {item.name}
+                      </div>
+                      <div className="text-xs text-gray-600">
+                        Qty: {item.count} {item.unit && `(${item.unit})`} • MRP:{" "}
+                        <IndianRupee className="h-3 w-3 inline" />
+                        {item.price}
+                      </div>
+                    </div>
+                    <Badge
+                      className={
+                        item.status === "pending"
+                          ? "bg-yellow-100 text-yellow-800"
+                          : item.status === "packing"
+                          ? "bg-orange-100 text-orange-800"
+                          : "bg-green-100 text-green-800"
+                      }
+                      variant="secondary"
+                    >
+                      {item.status}
+                    </Badge>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
 
         {/* Fixed Bottom Actions */}
         <div className="fixed bottom-0 left-0 right-0 bg-white border-t p-4">
-          <div className="grid grid-cols-2 gap-4">
-            <Dialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
+          <div className="grid grid-cols-1 gap-4">
+            {/* <Dialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
               <DialogTrigger asChild>
                 <Button variant="destructive" className="w-full">
                   Cancel Order
@@ -345,13 +335,13 @@ export default function DeliveryOrderDetailPage() {
                   </Button>
                 </DialogFooter>
               </DialogContent>
-            </Dialog>
+            </Dialog> */}
 
             <Button
               className="w-full bg-green-600 hover:bg-green-700 text-white"
               onClick={() => updateOrderStatus("arriving")}
             >
-              👉 Start Delivery
+              Start Delivery
             </Button>
           </div>
         </div>

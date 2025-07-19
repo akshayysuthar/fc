@@ -318,13 +318,7 @@ export default function FulfillmentOrderDetail() {
   }
 
   // Filter items for current branch
-  const myBranchItems =
-    order?.items.filter((item) => item.branch._id.toString() === branchId) ||
-    [];
-
-  const otherBranchItems =
-    order?.items.filter((item) => item.branch._id.toString() !== branchId) ||
-    [];
+  const myBranchItems = order?.items.filter((item) => order?.items || []);
 
   // Get branch-specific stats
   const myBranchStats = {
@@ -503,61 +497,6 @@ export default function FulfillmentOrderDetail() {
                     </div>
                   );
                 })}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Other Branch Items */}
-        {otherBranchItems.length > 0 && (
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base sm:text-lg flex items-center gap-2">
-                <Package className="h-5 w-5" />
-                Other Branch Items ({otherBranchItems.length})
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pt-0">
-              <div className="space-y-3">
-                {otherBranchItems.map((item) => (
-                  <div
-                    key={item._id}
-                    className="border rounded-lg p-3 bg-gray-50"
-                  >
-                    <div className="flex items-center gap-3">
-                      <img
-                        src={item.image || "/placeholder.svg"}
-                        alt={item.name}
-                        className="w-12 h-12 object-cover rounded border flex-shrink-0"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <div className="font-medium text-sm truncate">
-                          {item.name}
-                        </div>
-                        <div className="text-xs text-gray-600">
-                          Qty: {item.count} {item.unit && `(${item.unit})`} •
-                          MRP: <IndianRupee className="h-3 w-3 inline" />
-                          {item.price}
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          Handled by other branch
-                        </div>
-                      </div>
-                      <Badge
-                        className={
-                          itemStatusColors[
-                            item.isCancelled
-                              ? "cancelled"
-                              : (item.status as keyof typeof itemStatusColors)
-                          ]
-                        }
-                        variant="secondary"
-                      >
-                        {item.isCancelled ? "Cancelled" : item.status}
-                      </Badge>
-                    </div>
-                  </div>
-                ))}
               </div>
             </CardContent>
           </Card>
