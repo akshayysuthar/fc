@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, MapPin } from "lucide-react";
+import { ArrowLeft, IndianRupee, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -37,6 +37,8 @@ export default function DeliveryOrderDetailPage() {
     "pickup" | "delivery" | "verification"
   >("pickup");
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+
+  console.log(order);
 
   useEffect(() => {
     const storedUserId = localStorage.getItem("deliveryPartnerId");
@@ -282,7 +284,9 @@ export default function DeliveryOrderDetailPage() {
                             {item.name}
                           </div>
                           <div className="text-xs text-gray-600">
-                            Qty: {item.count}
+                            Qty: {item.count} {item.unit && `(${item.unit})`} • 
+                            MRP: <IndianRupee className="h-3 w-3 inline" />
+                            {item.price}
                           </div>
                         </div>
                         <Badge
