@@ -132,10 +132,62 @@ export default function AnalyticsPageContent() {
   };
 
   const exportData = async () => {
-    // This function would typically trigger a backend export.
-    // For this example, we'll just log a message.
-    console.log("Export data functionality would be implemented here.");
-    alert("Export functionality is not implemented in this demo.");
+    // try {
+    //   setLoading(true);
+    //   const startDate = format(dateRange.from, "yyyy-MM-dd");
+    //   const endDate = format(dateRange.to, "yyyy-MM-dd");
+    //   const response = await fetch(
+    //     `${process.env.NEXT_PUBLIC_API_URL}/analytics/export?startDate=${startDate}&endDate=${endDate}`,
+    //     {
+    //       method: "GET",
+    //     }
+    //   );
+    //   if (!response.ok) throw new Error("Failed to export analytics");
+    //   // Assume the response is a file (CSV, Excel, etc.)
+    //   const blob = await response.blob();
+    //   const url = window.URL.createObjectURL(blob);
+    //   const a = document.createElement("a");
+    //   a.href = url;
+    //   // Try to get filename from response headers, fallback to default
+    //   const disposition = response.headers.get("Content-Disposition");
+    //   let filename = "analytics-export.csv";
+    //   if (disposition && disposition.includes("filename=")) {
+    //     filename = disposition.split("filename=")[1].replace(/"/g, "");
+    //   }
+    //   a.download = filename;
+    //   document.body.appendChild(a);
+    //   a.click();
+    //   a.remove();
+    //   window.URL.revokeObjectURL(url);
+    // } catch (error) {
+    //   console.error("Failed to export analytics:", error);
+    //   alert("Export failed. Please try again.");
+    // } finally {
+    //   setLoading(false);
+    // }
+
+    try {
+      const startDate = format(dateRange.from, "yyyy-MM-dd");
+      const endDate = format(dateRange.to, "yyyy-MM-dd");
+
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/analytics/export?startDate=${startDate}&endDate=${endDate}`
+      );
+
+      if (!response.ok) throw new Error("Failed to export data");
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.style.display = "none";
+      a.href = url;
+      a.download = `analytics-${startDate}-to-${endDate}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Failed to export data:", error);
+    }
   };
 
   const formatDayDataForChart = (dayData: AnalyticsData["ordersByDay"]) => {
