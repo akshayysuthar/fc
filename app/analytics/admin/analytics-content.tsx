@@ -8,6 +8,7 @@ import {
   CreditCard,
   Clock,
   Package,
+  MapPin, // Added for Orders by Area
 } from "lucide-react";
 import {
   Card,
@@ -35,9 +36,6 @@ import {
   YAxis,
   CartesianGrid,
   ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
   LineChart,
   Line,
   Legend,
@@ -46,78 +44,42 @@ import {
 import { format, subDays } from "date-fns";
 import Link from "next/link";
 
+// Define the interface for the new API response structure
 interface AnalyticsData {
-  ordersByDay: Array<{
-    _id: { year: number; month: number; day: number };
-    totalOrders: number;
-    canceledOrders: number;
-    totalRevenue: number;
-    totalDeliveryFee: number;
-    totalHandlingFee: number;
-  }>;
-  ordersByMonth: Array<{
-    _id: { year: number; month: number };
-    totalOrders: number;
-    canceledOrders: number;
-    totalRevenue: number;
-    totalDeliveryFee: number;
-    totalHandlingFee: number;
-  }>;
+  todayOrders: {
+    _id: null;
+    total: number;
+    completed: number;
+    pending: number;
+  };
+  currentOrders: number;
+  totalRevenue: number;
   ordersBySlot: Array<{
     _id: string;
     totalOrders: number;
-    totalRevenue: number;
-    canceledOrders: number;
+    totalValue: number;
+  }>;
+  ordersByArea: Array<{
+    _id: string | null; // _id can be null based on the example
+    totalOrders: number;
+    totalValue: number;
+  }>;
+  ordersByDay: Array<{
+    _id: string; // "YYYY-MM-DD" format
+    count: number;
+    revenue: number;
   }>;
   ordersByPaymentMethod: Array<{
     _id: string;
     totalOrders: number;
-    totalRevenue: number;
-    canceledOrders: number;
-  }>;
-  sellerProductAggregation: Array<{
-    totalQuantitySold: number;
-    totalRevenue: number;
-    products: Array<{
-      productId: string;
-      productName: string;
-      quantitySold: number;
-      revenue: number;
-    }>;
-    sellerId: string;
-    sellerName: string;
+    totalValue: number;
   }>;
   branchStats: Array<{
-    totalQuantity: number;
-    totalRevenue: number;
+    _id: string;
+    name: string;
     totalOrders: number;
-    deliveredOrders: number;
-    cancelledOrders: number;
-    avgPackingTime: number | null;
-    avgDeliveryTime: number | null;
-    branchId: string;
-    branchName: string;
-    totalDeliveryFee: number;
-    totalHandlingFee: number;
+    totalValue: number;
   }>;
-  onTimePerformance: {
-    onTime: number;
-    delayed: number;
-    atRisk: number;
-    total: number;
-  };
-  todayOrders: {
-    total: number;
-    completed: number;
-    pending: number;
-    change: number;
-  };
-  monthOrders: {
-    total: number;
-    completed: number;
-    pending: number;
-    change: number;
-  };
 }
 
 const COLORS = [
@@ -142,10 +104,13 @@ export default function AnalyticsPageContent() {
   const [showCalendar, setShowCalendar] = useState(false);
 
   useEffect(() => {
+    // Simulate API call with the provided JSON data
     fetchAnalytics();
   }, [dateRange]);
 
   const fetchAnalytics = async () => {
+    // In a real application, you would fetch data based on dateRange
+    // For this example, we use the provided static JSON
     try {
       setLoading(true);
       const startDate = format(dateRange.from, "yyyy-MM-dd");
@@ -167,90 +132,19 @@ export default function AnalyticsPageContent() {
   };
 
   const exportData = async () => {
-    try {
-      const startDate = format(dateRange.from, "yyyy-MM-dd");
-      const endDate = format(dateRange.to, "yyyy-MM-dd");
-
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/analytics/export?startDate=${startDate}&endDate=${endDate}`
-      );
-
-      if (!response.ok) throw new Error("Failed to export data");
-
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.style.display = "none";
-      a.href = url;
-      a.download = `analytics-${startDate}-to-${endDate}.xlsx`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error("Failed to export data:", error);
-    }
+    // This function would typically trigger a backend export.
+    // For this example, we'll just log a message.
+    console.log("Export data functionality would be implemented here.");
+    alert("Export functionality is not implemented in this demo.");
   };
 
-  const formatDayData = (dayData: AnalyticsData["ordersByDay"]) => {
+  const formatDayDataForChart = (dayData: AnalyticsData["ordersByDay"]) => {
     return dayData.map((item) => ({
-      date: `${item._id.day}/${item._id.month}`,
-      orders: item.totalOrders,
-      revenue: item.totalRevenue,
-      deliveryFee: item.totalDeliveryFee,
-      handlingFee: item.totalHandlingFee,
-      canceled: item.canceledOrders,
+      date: format(new Date(item._id), "MMM dd"), // Format date for display
+      orders: item.count,
+      revenue: item.revenue,
     }));
   };
-
-  const getTotalStats = () => {
-    if (!data)
-      return {
-        totalOrders: 0,
-        totalRevenue: 0,
-        deliveredOrders: 0,
-        cancelledOrders: 0,
-        totalProductsSold: 0,
-        avgPackingTime: null,
-        avgDeliveryTime: null,
-        totalDeliveryFee: 0,
-        totalHandlingFee: 0,
-      };
-
-    return data.branchStats.reduce(
-      (acc, branch) => ({
-        totalOrders: acc.totalOrders + branch.totalOrders,
-        totalRevenue: acc.totalRevenue + branch.totalRevenue,
-        deliveredOrders: acc.deliveredOrders + branch.deliveredOrders,
-        cancelledOrders: acc.cancelledOrders + branch.cancelledOrders,
-        totalProductsSold: acc.totalProductsSold + branch.totalQuantity,
-        avgPackingTime: branch.avgPackingTime
-          ? acc.avgPackingTime
-            ? (acc.avgPackingTime + branch.avgPackingTime) / 2
-            : branch.avgPackingTime
-          : acc.avgPackingTime,
-        avgDeliveryTime: branch.avgDeliveryTime
-          ? acc.avgDeliveryTime
-            ? (acc.avgDeliveryTime + branch.avgDeliveryTime) / 2
-            : branch.avgDeliveryTime
-          : acc.avgDeliveryTime,
-        totalDeliveryFee: acc.totalDeliveryFee + branch.totalDeliveryFee,
-        totalHandlingFee: acc.totalHandlingFee + branch.totalHandlingFee,
-      }),
-      {
-        totalOrders: 0,
-        totalRevenue: 0,
-        deliveredOrders: 0,
-        cancelledOrders: 0,
-        totalProductsSold: 0,
-        avgPackingTime: null as number | null,
-        avgDeliveryTime: null as number | null,
-        totalDeliveryFee: 0,
-        totalHandlingFee: 0,
-      }
-    );
-  };
-
-  const stats = getTotalStats();
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-IN", {
@@ -260,23 +154,8 @@ export default function AnalyticsPageContent() {
     }).format(amount);
   };
 
-  // Validate onTimePerformance data
-  const isValidOnTimeData = (
-    onTimePerformance: AnalyticsData["onTimePerformance"] | undefined
-  ) => {
-    if (!onTimePerformance) return false;
-    return (
-      typeof onTimePerformance.onTime === "number" &&
-      !isNaN(onTimePerformance.onTime) &&
-      typeof onTimePerformance.atRisk === "number" &&
-      !isNaN(onTimePerformance.atRisk) &&
-      typeof onTimePerformance.delayed === "number" &&
-      !isNaN(onTimePerformance.delayed)
-    );
-  };
-
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 font-sans">
       {/* Header */}
       <div className="bg-white shadow-sm border-b sticky top-0 z-10">
         <div className="p-3 sm:p-4">
@@ -294,7 +173,7 @@ export default function AnalyticsPageContent() {
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
-                    className="justify-start text-left font-normal text-xs sm:text-sm"
+                    className="justify-start text-left font-normal text-xs sm:text-sm w-full sm:w-auto"
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
                     {dateRange.from ? (
@@ -329,13 +208,18 @@ export default function AnalyticsPageContent() {
               </Popover>
               <Button
                 onClick={exportData}
-                className="flex items-center gap-2"
+                className="flex items-center gap-2 w-full sm:w-auto"
                 size="sm"
               >
                 <Download className="h-4 w-4" />
                 Export
               </Button>
-              <Button asChild variant="outline" size="sm">
+              <Button
+                asChild
+                variant="outline"
+                size="sm"
+                className="w-full sm:w-auto"
+              >
                 <Link href="/">← Home</Link>
               </Button>
             </div>
@@ -354,8 +238,8 @@ export default function AnalyticsPageContent() {
           </div>
         ) : (
           <div className="space-y-4 sm:space-y-6">
-            {/* Today & Month Order Stats */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
+            {/* Key Stats */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-xs sm:text-sm font-medium">
@@ -368,8 +252,8 @@ export default function AnalyticsPageContent() {
                     {data.todayOrders?.total}
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    {data.todayOrders?.change > 0 ? "+" : ""}
-                    {data.todayOrders?.change} from yesterday
+                    Completed: {data.todayOrders?.completed} • Pending:{" "}
+                    {data.todayOrders?.pending}
                   </p>
                 </CardContent>
               </Card>
@@ -377,42 +261,16 @@ export default function AnalyticsPageContent() {
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-xs sm:text-sm font-medium">
-                    Month Orders
-                  </CardTitle>
-                  <Calendar className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-base sm:text-2xl font-bold">
-                    {data.monthOrders?.total}
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    {data.monthOrders?.change > 0 ? "+" : ""}
-                    {data.monthOrders?.change} from last month
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-xs sm:text-sm font-medium">
-                    On-Time Rate
+                    Current Live Orders
                   </CardTitle>
                   <Clock className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
                   <div className="text-base sm:text-2xl font-bold">
-                    {data.onTimePerformance?.total > 0
-                      ? Math.round(
-                          (data.onTimePerformance?.onTime /
-                            data.onTimePerformance?.total) *
-                            100
-                        )
-                      : 0}
-                    %
+                    {data.currentOrders}
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    {data.onTimePerformance?.onTime}/
-                    {data.onTimePerformance?.total} orders on time
+                    Orders currently in progress
                   </p>
                 </CardContent>
               </Card>
@@ -427,449 +285,126 @@ export default function AnalyticsPageContent() {
                 <CardContent>
                   <div className="text-base sm:text-2xl font-bold flex items-center">
                     <IndianRupee className="h-3 w-3 sm:h-5 sm:w-5" />
-                    {stats.totalRevenue}
+                    {formatCurrency(data.totalRevenue)}
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    Avg:{" "}
-                    {formatCurrency(
-                      stats.totalOrders > 0
-                        ? stats.totalRevenue / stats.totalOrders
-                        : 0
-                    )}
+                    Overall revenue for selected period
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-xs sm:text-sm font-medium">
+                    Orders by Area
+                  </CardTitle>
+                  <MapPin className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-base sm:text-2xl font-bold">
+                    {data.ordersByArea?.[0]?.totalOrders || 0}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Total orders across all areas
                   </p>
                 </CardContent>
               </Card>
             </div>
 
-            {/* Revenue Breakdown */}
+            {/* Orders by Slot Chart */}
             <Card>
               <CardHeader>
                 <CardTitle className="text-sm sm:text-lg">
-                  Revenue Breakdown
+                  Orders by Time Slot
                 </CardTitle>
                 <CardDescription className="text-xs sm:text-sm">
-                  Order value, delivery & handling fees
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="p-4 bg-gray-50 rounded-lg text-center">
-                    <div className="text-sm text-gray-600 mb-1">
-                      Order Value
-                    </div>
-                    <div className="text-xl font-bold flex items-center justify-center">
-                      <IndianRupee className="h-4 w-4" />
-                      {stats.totalRevenue -
-                        stats.totalDeliveryFee -
-                        stats.totalHandlingFee}
-                    </div>
-                    <div className="text-xs text-gray-500">
-                      {Math.round(
-                        ((stats.totalRevenue -
-                          stats.totalDeliveryFee -
-                          stats.totalHandlingFee) /
-                          stats.totalRevenue) *
-                          100
-                      )}
-                      % of total
-                    </div>
-                  </div>
-                  <div className="p-4 bg-gray-50 rounded-lg text-center">
-                    <div className="text-sm text-gray-600 mb-1">
-                      Delivery Fees
-                    </div>
-                    <div className="text-xl font-bold flex items-center justify-center">
-                      <IndianRupee className="h-4 w-4" />
-                      {stats.totalDeliveryFee}
-                    </div>
-                    <div className="text-xs text-gray-500">
-                      {Math.round(
-                        (stats.totalDeliveryFee / stats.totalRevenue) * 100
-                      )}
-                      % of total
-                    </div>
-                  </div>
-                  <div className="p-4 bg-gray-50 rounded-lg text-center">
-                    <div className="text-sm text-gray-600 mb-1">
-                      Handling Fees
-                    </div>
-                    <div className="text-xl font-bold flex items-center justify-center">
-                      <IndianRupee className="h-4 w-4" />
-                      {stats.totalHandlingFee}
-                    </div>
-                    <div className="text-xs text-gray-500">
-                      {Math.round(
-                        (stats.totalHandlingFee / stats.totalRevenue) * 100
-                      )}
-                      % of total
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* On-Time Performance Chart */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-sm sm:text-lg">
-                    On-Time Performance
-                  </CardTitle>
-                  <CardDescription className="text-xs sm:text-sm">
-                    Orders packed before deadline
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {isValidOnTimeData(data.onTimePerformance) ? (
-                    <ChartContainer
-                      config={{
-                        onTime: { label: "On Time", color: "#00C49F" },
-                        atRisk: { label: "At Risk", color: "#FFBB28" },
-                        delayed: { label: "Delayed", color: "#FF8042" },
-                      }}
-                      className="h-[200px] sm:h-[300px]"
-                    >
-                      <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
-                          <Pie
-                            data={[
-                              {
-                                name: "On Time",
-                                value: data.onTimePerformance.onTime,
-                              },
-                              {
-                                name: "At Risk",
-                                value: data.onTimePerformance.atRisk,
-                              },
-                              {
-                                name: "Delayed",
-                                value: data.onTimePerformance.delayed,
-                              },
-                            ]}
-                            cx="50%"
-                            cy="50%"
-                            labelLine={false}
-                            label={({ name, value }) => `${name}: ${value}`}
-                            outerRadius={80}
-                            fill="#8884d8"
-                            dataKey="value"
-                          >
-                            {[
-                              {
-                                name: "On Time",
-                                value: data.onTimePerformance.onTime,
-                                color: "#00C49F",
-                              },
-                              {
-                                name: "At Risk",
-                                value: data.onTimePerformance.atRisk,
-                                color: "#FFBB28",
-                              },
-                              {
-                                name: "Delayed",
-                                value: data.onTimePerformance.delayed,
-                                color: "#FF8042",
-                              },
-                            ].map((entry, index) => (
-                              <Cell key={`cell-${index}`} fill={entry.color} />
-                            ))}
-                          </Pie>
-                          <ChartTooltip content={<ChartTooltipContent />} />
-                          <Legend />
-                        </PieChart>
-                      </ResponsiveContainer>
-                    </ChartContainer>
-                  ) : (
-                    <div className="text-gray-500 text-center">
-                      No valid on-time performance data available
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-sm sm:text-lg">
-                    Orders by Slot
-                  </CardTitle>
-                  <CardDescription className="text-xs sm:text-sm">
-                    Popular delivery times
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <ChartContainer
-                    config={{
-                      orders: { label: "Orders", color: "#0088FE" },
-                    }}
-                    className="h-[200px] sm:h-[300px]"
-                  >
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={data.ordersBySlot}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="_id" fontSize={10} />
-                        <YAxis fontSize={10} />
-                        <ChartTooltip content={<ChartTooltipContent />} />
-                        <Bar
-                          dataKey="totalOrders"
-                          fill="#0088FE"
-                          name="Orders"
-                        />
-                        <Legend />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </ChartContainer>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Revenue Components Chart */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-sm sm:text-lg">
-                  Revenue Components
-                </CardTitle>
-                <CardDescription className="text-xs sm:text-sm">
-                  Daily breakdown of revenue sources
+                  Distribution of orders across different time slots
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <ChartContainer
                   config={{
-                    revenue: { label: "Order Value", color: "#0088FE" },
-                    deliveryFee: { label: "Delivery Fee", color: "#00C49F" },
-                    handlingFee: { label: "Handling Fee", color: "#FFBB28" },
+                    totalOrders: { label: "Orders", color: "#0088FE" },
                   }}
-                  className="h-[300px]"
+                  className="h-[200px] sm:h-[300px]"
                 >
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={formatDayData(data.ordersByDay)}>
+                    <BarChart
+                      data={data.ordersBySlot.sort((a, b) =>
+                        a._id.localeCompare(b._id)
+                      )} // Sort by slot name for consistency
+                      margin={{ top: 10, right: 10, left: 10, bottom: 0 }}
+                    >
                       <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="date" fontSize={10} />
-                      <YAxis fontSize={10} />
-                      <Tooltip />
-                      <Legend />
+                      <XAxis
+                        dataKey="_id"
+                        angle={-45}
+                        textAnchor="end"
+                        height={60}
+                        interval={0}
+                        tick={{ fontSize: 10 }}
+                      />
+                      <YAxis tick={{ fontSize: 10 }} />
+                      <ChartTooltip content={<ChartTooltipContent />} />
                       <Bar
-                        dataKey="revenue"
-                        stackId="a"
+                        dataKey="totalOrders"
                         fill="#0088FE"
-                        name="Order Value"
+                        name="Orders"
                         radius={[4, 4, 0, 0]}
                       />
-                      <Bar
-                        dataKey="deliveryFee"
-                        stackId="a"
-                        fill="#00C49F"
-                        name="Delivery Fee"
-                        radius={[0, 0, 0, 0]}
-                      />
-                      <Bar
-                        dataKey="handlingFee"
-                        stackId="a"
-                        fill="#FFBB28"
-                        name="Handling Fee"
-                        radius={[0, 0, 4, 4]}
-                      />
+                      <Legend />
                     </BarChart>
                   </ResponsiveContainer>
                 </ChartContainer>
               </CardContent>
             </Card>
 
-            {/* Charts Row 2 */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-              {/* Orders by Slot
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-sm sm:text-lg">
-                    Orders by Time Slot
-                  </CardTitle>
-                  <CardDescription className="text-xs sm:text-sm">
-                    Popular delivery times
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <ChartContainer
-                    config={{
-                      orders: {
-                        label: "Orders",
-                        color: "hsl(var(--chart-3))",
-                      },
-                    }}
-                    className="h-[200px] sm:h-[300px]"
-                  >
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={data.ordersBySlot} layout="horizontal">
+            {/* Revenue Trend by Day */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm sm:text-lg">
+                  Daily Revenue Trend
+                </CardTitle>
+                <CardDescription className="text-xs sm:text-sm">
+                  Revenue performance over the selected date range
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ChartContainer
+                  config={{
+                    revenue: {
+                      label: "Revenue",
+                      color: "hsl(var(--chart-4))",
+                    },
+                  }}
+                  className="h-[200px] sm:h-[300px]"
+                >
+                  <ResponsiveContainer width="100%" height="100%">
+                    {Array.isArray(data.ordersByDay) &&
+                    data.ordersByDay.length > 0 ? (
+                      <LineChart data={formatDayDataForChart(data.ordersByDay)}>
                         <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis type="number" fontSize={10} />
-                        <YAxis
-                          dataKey="_id"
-                          type="category"
-                          width={60}
-                          fontSize={8}
-                        />
+                        <XAxis dataKey="date" fontSize={10} />
+                        <YAxis fontSize={10} />
                         <ChartTooltip content={<ChartTooltipContent />} />
-                        <Bar
-                          // key={data.ordersBySlot._id}
-                          dataKey="ordersBySlot"
-                          stackId="a"
-                          fill="#0088FE"
-                          name="Order Value"
-                          radius={[4, 4, 0, 0]}
+                        <Line
+                          type="monotone"
+                          dataKey="revenue"
+                          stroke="var(--color-revenue)"
+                          strokeWidth={2}
+                          dot={{ r: 4 }}
+                          activeDot={{ r: 6 }}
                         />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </ChartContainer>
-                </CardContent>
-              </Card> */}
-
-              {/* Revenue Trend */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-sm sm:text-lg">
-                    Revenue Trend
-                  </CardTitle>
-                  <CardDescription className="text-xs sm:text-sm">
-                    Daily revenue performance
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <ChartContainer
-                    config={{
-                      revenue: {
-                        label: "Revenue",
-                        color: "hsl(var(--chart-4))",
-                      },
-                    }}
-                    className="h-[200px] sm:h-[300px]"
-                  >
-                    <ResponsiveContainer width="100%" height="100%">
-                      {Array.isArray(data.ordersByDay) &&
-                      data.ordersByDay.length > 0 ? (
-                        <LineChart data={formatDayData(data.ordersByDay)}>
-                          <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis dataKey="date" fontSize={10} />
-                          <YAxis fontSize={10} />
-                          <ChartTooltip content={<ChartTooltipContent />} />
-                          <Line
-                            type="monotone"
-                            dataKey="revenue"
-                            stroke="var(--color-revenue)"
-                            strokeWidth={5}
-                          />
-                        </LineChart>
-                      ) : (
-                        <div className="flex items-center justify-center h-full text-gray-500 text-sm">
-                          No revenue data available
-                        </div>
-                      )}
-                    </ResponsiveContainer>
-                  </ChartContainer>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Detailed Tables */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-              {/* Top Products */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-sm sm:text-lg">
-                    Top Products
-                  </CardTitle>
-                  <CardDescription className="text-xs sm:text-sm">
-                    Best selling products by revenue
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2 sm:space-y-4">
-                    {data.sellerProductAggregation
-                      .flatMap((seller) =>
-                        seller.products.map((product) => ({
-                          ...product,
-                          sellerName: seller.sellerName,
-                          sellerId: seller.sellerId,
-                        }))
-                      )
-                      .sort((a, b) => b.revenue - a.revenue)
-                      .slice(0, 5)
-                      .map((product, index) => (
-                        <div
-                          key={`${product.productId}-${
-                            product.sellerId || index
-                          }`}
-                          className="flex items-center justify-between p-2 sm:p-3 bg-gray-50 rounded"
-                        >
-                          <div className="flex-1 min-w-0">
-                            <div className="font-medium text-xs sm:text-sm truncate">
-                              {product.productName}
-                            </div>
-                            <div className="text-xs text-gray-600">
-                              by {product.sellerName}
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <div className="font-bold flex items-center text-xs sm:text-sm">
-                              <IndianRupee className="h-3 w-3 sm:h-4 sm:w-4" />
-                              {product.revenue}
-                            </div>
-                            <div className="text-xs text-gray-600">
-                              {product.quantitySold} sold
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Branch Performance */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-sm sm:text-lg">
-                    Branch Performance
-                  </CardTitle>
-                  <CardDescription className="text-xs sm:text-sm">
-                    Performance by branch
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2 sm:space-y-4">
-                    {data.branchStats.map((branch, index) => (
-                      <div
-                        key={branch.branchId}
-                        className="flex items-center justify-between p-2 sm:p-3 bg-gray-50 rounded"
-                      >
-                        <div className="flex-1 min-w-0">
-                          <div className="font-medium text-xs sm:text-sm truncate">
-                            {branch.branchName}
-                          </div>
-                          <div className="text-xs text-gray-600">
-                            {branch.totalOrders} orders •{" "}
-                            {branch.deliveredOrders} delivered
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <div className="font-bold flex items-center text-xs sm:text-sm">
-                            <IndianRupee className="h-3 w-3 sm:h-4 sm:w-4" />
-                            {branch.totalRevenue}
-                          </div>
-                          <div className="text-xs text-gray-600">
-                            {branch.totalOrders > 0
-                              ? Math.round(
-                                  (branch.deliveredOrders /
-                                    branch.totalOrders) *
-                                    100
-                                )
-                              : 0}
-                            % success
-                          </div>
-                        </div>
+                      </LineChart>
+                    ) : (
+                      <div className="flex items-center justify-center h-full text-gray-500 text-sm">
+                        No daily revenue data available
                       </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+                    )}
+                  </ResponsiveContainer>
+                </ChartContainer>
+              </CardContent>
+            </Card>
 
             {/* Payment Method Details */}
             <Card>
@@ -878,7 +413,7 @@ export default function AnalyticsPageContent() {
                   Payment Method Breakdown
                 </CardTitle>
                 <CardDescription className="text-xs sm:text-sm">
-                  Detailed payment analysis
+                  Detailed payment analysis by method
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -886,42 +421,91 @@ export default function AnalyticsPageContent() {
                   {data.ordersByPaymentMethod.map((method, index) => (
                     <div
                       key={method._id}
-                      className="p-3 sm:p-4 border rounded-lg"
+                      className="p-3 sm:p-4 border rounded-lg bg-gray-50"
                     >
                       <div className="flex items-center gap-2 mb-2">
-                        <CreditCard className="h-4 w-4" />
-                        <span className="font-medium text-sm">
+                        <CreditCard className="h-4 w-4 text-gray-700" />
+                        <span className="font-semibold text-sm capitalize">
                           {method._id}
                         </span>
                       </div>
                       <div className="space-y-1">
-                        <div className="flex justify-between">
+                        <div className="flex justify-between items-center">
                           <span className="text-xs text-gray-600">Orders:</span>
-                          <span className="font-medium text-xs">
+                          <span className="font-medium text-sm">
                             {method.totalOrders}
                           </span>
                         </div>
-                        <div className="flex justify-between">
+                        <div className="flex justify-between items-center">
                           <span className="text-xs text-gray-600">
                             Revenue:
                           </span>
-                          <span className="font-medium flex items-center text-xs">
-                            <IndianRupee className="h-3 w-3" />
-                            {method.totalRevenue}
+                          <span className="font-medium flex items-center text-sm">
+                            <IndianRupee className="h-3 w-3 mr-0.5" />
+                            {formatCurrency(method.totalValue)}
                           </span>
                         </div>
-                        <div className="flex justify-between">
+                        <div className="flex justify-between items-center">
                           <span className="text-xs text-gray-600">
                             Avg Value:
                           </span>
-                          <span className="font-medium flex items-center text-xs">
-                            <IndianRupee className="h-3 w-3" />
-                            {method.totalOrders > 0
-                              ? Math.round(
-                                  method.totalRevenue / method.totalOrders
-                                )
-                              : 0}
+                          <span className="font-medium flex items-center text-sm">
+                            <IndianRupee className="h-3 w-3 mr-0.5" />
+                            {formatCurrency(
+                              method.totalOrders > 0
+                                ? Math.round(
+                                    method.totalValue / method.totalOrders
+                                  )
+                                : 0
+                            )}
                           </span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Branch Performance */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm sm:text-lg">
+                  Branch Performance
+                </CardTitle>
+                <CardDescription className="text-xs sm:text-sm">
+                  Overview of each branch's performance
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3 sm:space-y-4">
+                  {data.branchStats.map((branch) => (
+                    <div
+                      key={branch._id}
+                      className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 sm:p-4 bg-gray-50 rounded-lg shadow-sm"
+                    >
+                      <div className="flex-1 min-w-0 mb-2 sm:mb-0">
+                        <div className="font-medium text-sm sm:text-base truncate">
+                          {branch.name}
+                        </div>
+                        <div className="text-xs text-gray-600">
+                          Total Orders: {branch.totalOrders}
+                        </div>
+                      </div>
+                      <div className="text-left sm:text-right">
+                        <div className="font-bold flex items-center text-sm sm:text-base">
+                          <IndianRupee className="h-3 w-3 sm:h-4 sm:w-4 mr-0.5" />
+                          {formatCurrency(branch.totalValue)}
+                        </div>
+                        <div className="text-xs text-gray-600">
+                          Avg Order Value:{" "}
+                          {formatCurrency(
+                            branch.totalOrders > 0
+                              ? Math.round(
+                                  branch.totalValue / branch.totalOrders
+                                )
+                              : 0
+                          )}
                         </div>
                       </div>
                     </div>
